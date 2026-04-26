@@ -7,22 +7,29 @@ import (
 	"github.com/unilan/unilanbackend/internal/orchestrator"
 )
 
-// Pipeline runs the orchestrator (detect → translate → map) then encrypts the
-// three text forms for storage.
+// Pipeline encrypts a sender's outgoing message. With per-viewer rendering
+// it only stores the ORIGINAL ciphertext (plus legacy display + UNI LAN
+// fields snapshotted as the sender's own view, kept for back-compat with
+// already-stored rows). Per-viewer renders are computed at read time.
 type Pipeline struct {
 	Orch   *orchestrator.Orchestrator
 	Cipher *crypto.Cipher
 }
 
 type PipelineResult struct {
-	*orchestrator.Outcome
+	Original   string
 	OriginalCT string
-	EnglishCT  string
-	UniLanCT   string
+	// Sender's-own-view snapshot. Useful for legacy reads / debugging; per-viewer
+	// rendering recomputes from `Original` so we don't depend on these later.
+	DisplayCT string
+	UniLanCT  string
+	SenderLang string
 }
 
-func (p *Pipeline) Process(ctx context.Context, original string) (*PipelineResult, error) {
-	out, err := p.Orch.Process(ctx, original)
+// Process renders the sender's own view and encrypts each form. `senderLang`
+// must be the user's regional language at send time.
+func (p *Pipeline) Process(ctx context.Context, original, senderLang string) (*PipelineResult, error) {
+	out, err := p.Orch.ProcessForViewer(ctx, original, senderLang, senderLang)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +37,7 @@ func (p *Pipeline) Process(ctx context.Context, original string) (*PipelineResul
 	if err != nil {
 		return nil, err
 	}
-	englishCT, err := p.Cipher.Encrypt([]byte(out.English))
+	displayCT, err := p.Cipher.Encrypt([]byte(out.Display))
 	if err != nil {
 		return nil, err
 	}
@@ -39,9 +46,10 @@ func (p *Pipeline) Process(ctx context.Context, original string) (*PipelineResul
 		return nil, err
 	}
 	return &PipelineResult{
-		Outcome:    out,
+		Original:   out.Original,
 		OriginalCT: originalCT,
-		EnglishCT:  englishCT,
+		DisplayCT:  displayCT,
 		UniLanCT:   unilanCT,
+		SenderLang: senderLang,
 	}, nil
 }

@@ -97,8 +97,10 @@ func main() {
 	api := r.Group("/", auth.Middleware(issuer), limiter.Middleware())
 	{
 		api.GET("/me", h.Me)
+		api.PATCH("/me/language", h.UpdateMyLanguage)
 		api.POST("/me/avatar", h.UpdateMyAvatar)
 		api.POST("/me/media", h.UploadMedia)
+		api.GET("/languages", h.Languages)
 		api.POST("/translate", h.Translate)
 		api.POST("/conversations", h.CreateConversation)
 		api.GET("/conversations", h.ListConversations)

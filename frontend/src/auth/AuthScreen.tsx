@@ -6,6 +6,7 @@ import { useTheme } from "../theme/ThemeContext";
 import { ApiError, api, setToken } from "../api/client";
 import type { BackendUser } from "../api/types";
 import UserAvatar from "../components/UserAvatar";
+import LanguageSelect from "../components/LanguageSelect";
 import SoftAurora from "../components/reactbits/SoftAurora";
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -20,7 +21,7 @@ export default function AuthScreen() {
   const { applyAuth, login, loginWithGoogle } = useAuth();
   const { theme } = useTheme();
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [step, setStep] = useState<"form" | "avatar">("form");
+  const [step, setStep] = useState<"form" | "avatar" | "language">("form");
   const [pending, setPending] = useState<Pending | null>(null);
 
   const [username, setUsername] = useState("");
@@ -65,6 +66,15 @@ export default function AuthScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  // After avatar (step 2) we move to the language picker (step 3) instead of
+  // committing the session. Caller passes the latest user record so a freshly
+  // uploaded avatar is reflected.
+  const goToLanguageStep = (user: BackendUser) => {
+    if (!pending) return;
+    setPending({ ...pending, user });
+    setStep("language");
   };
 
   const finishWithUser = (user: BackendUser) => {
@@ -122,8 +132,15 @@ export default function AuthScreen() {
               theme={theme}
               loginWithGoogle={loginWithGoogle}
             />
-          ) : pending ? (
+          ) : step === "avatar" && pending ? (
             <AvatarStep
+              user={pending.user}
+              onDone={goToLanguageStep}
+              err={err}
+              setErr={setErr}
+            />
+          ) : step === "language" && pending ? (
+            <LanguageStep
               user={pending.user}
               onDone={finishWithUser}
               err={err}
@@ -350,6 +367,74 @@ function AvatarStep(props: {
           className="border border-line py-2 text-[12px] uppercase tracking-[0.2em] text-ink-dim hover:text-ink hover:border-line-strong transition"
         >
           skip for now
+        </button>
+      </div>
+
+      {err && (
+        <p className="mt-5 text-[12px] text-red-500 border border-red-500/30 bg-red-500/5 px-3 py-2 text-center w-full">
+          {err}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------- Step 3: language ----------
+
+function LanguageStep(props: {
+  user: BackendUser;
+  onDone: (user: BackendUser) => void;
+  err: string | null;
+  setErr: (v: string | null) => void;
+}) {
+  const { user, onDone, err, setErr } = props;
+  const [language, setLanguage] = useState<string>(user.language || "en");
+  const [busy, setBusy] = useState(false);
+
+  const apply = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      // Skip the API call if language hasn't changed from the default — saves
+      // a round-trip when the user just clicks through.
+      if (language && language !== (user.language || "en")) {
+        const r = await api.setMyLanguage(language);
+        onDone(r.user);
+      } else {
+        onDone(user);
+      }
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "could not save language");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <h2 className="font-serif text-xl mb-1">your language</h2>
+      <p className="text-[11px] uppercase tracking-[0.2em] text-ink-dim mb-7 text-center">
+        messages you send and receive will be rendered in this language
+      </p>
+
+      <div className="w-full mb-5">
+        <LanguageSelect
+          value={language}
+          onChange={setLanguage}
+          disabled={busy}
+        />
+      </div>
+
+      <p className="text-[10px] uppercase tracking-[0.2em] text-ink-dim mb-6 text-center">
+        you can change this anytime
+      </p>
+
+      <div className="flex flex-col gap-2 w-full">
+        <button
+          onClick={apply}
+          disabled={busy}
+          className="bg-accent/90 hover:bg-accent text-accent-fg py-2.5 text-[12px] uppercase tracking-[0.2em] disabled:opacity-40 transition shadow-md shadow-accent/20"
+        >
+          {busy ? "saving…" : "continue"}
         </button>
       </div>
 
