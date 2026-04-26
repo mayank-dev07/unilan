@@ -68,9 +68,9 @@ func Load() (*Config, error) {
 	if c.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required (Postgres connection string)")
 	}
-	if c.GoogleClientID == "" {
-		return nil, fmt.Errorf("GOOGLE_CLIENT_ID is required")
-	}
+	// GoogleClientID is OPTIONAL — only required when /auth/google is hit.
+	// The handler validates against an empty client ID and returns 401, so the
+	// rest of the app stays usable without Google OAuth configured.
 	return c, nil
 }
 

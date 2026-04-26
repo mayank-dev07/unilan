@@ -80,6 +80,31 @@ func (d *DB) IsMember(conversationID, userID string) (bool, error) {
 	return n > 0, err
 }
 
+// FindOneOnOneConversation returns the existing 1-1 conversation between
+// userA and userB (any conversation whose member set is exactly {userA, userB}),
+// or ErrNotFound. Used to make conversation creation idempotent.
+func (d *DB) FindOneOnOneConversation(userA, userB string) (*models.Conversation, error) {
+	row := d.QueryRow(`
+		SELECT c.id, c.title, c.created_by, c.created_at
+		FROM conversations c
+		JOIN conversation_members ma ON ma.conversation_id = c.id AND ma.user_id = $1
+		JOIN conversation_members mb ON mb.conversation_id = c.id AND mb.user_id = $2
+		WHERE (
+			SELECT COUNT(*) FROM conversation_members m WHERE m.conversation_id = c.id
+		) = 2
+		ORDER BY c.created_at ASC
+		LIMIT 1`, userA, userB)
+	var c models.Conversation
+	err := row.Scan(&c.ID, &c.Title, &c.CreatedBy, &c.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 func (d *DB) ConversationMemberIDs(conversationID string) ([]string, error) {
 	rows, err := d.Query(`SELECT user_id FROM conversation_members WHERE conversation_id = $1`, conversationID)
 	if err != nil {

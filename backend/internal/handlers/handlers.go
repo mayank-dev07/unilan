@@ -189,6 +189,18 @@ func (h *Handler) CreateConversation(c *gin.Context) {
 		}
 		members = append(members, u.ID)
 	}
+
+	// 1-1 chat dedupe: if there's already a conversation between exactly these
+	// two users, return it instead of creating a duplicate. This makes the
+	// endpoint idempotent and prevents the "two conversations between the same
+	// pair, messages split across them" bug regardless of which side clicks first.
+	if len(members) == 1 && members[0] != uid {
+		if existing, err := h.DB.FindOneOnOneConversation(uid, members[0]); err == nil {
+			c.JSON(http.StatusOK, existing)
+			return
+		}
+	}
+
 	conv, err := h.DB.CreateConversation(req.Title, uid, members)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

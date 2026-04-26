@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSubscription } from "urql";
 import { api } from "../api/client";
-import type { BackendConversation, BackendMessage } from "../api/types";
+import type { BackendMessage } from "../api/types";
 import type { Contact, Message } from "../types";
 import { useAuth } from "../auth/AuthContext";
 
@@ -21,11 +21,6 @@ function hash(s: string): number {
   return h;
 }
 
-function toContact(c: BackendConversation): Contact {
-  const name = c.title || "chat";
-  return { id: c.id, name, avatar: avatarFor(name), lastSeen: "" };
-}
-
 function toMessage(m: BackendMessage, myUserId: string): Message {
   return {
     id: m.id,
@@ -41,9 +36,9 @@ function toMessage(m: BackendMessage, myUserId: string): Message {
   };
 }
 
-// Live conversations subscription via Hasura. Hasura's row-level permission
-// (set in hasura/setup.sh) ensures we only get conversations where the
-// authenticated user is a member.
+// Now includes members so we can pick the OTHER member's username as the
+// display name. Title is no longer trusted — it's one-sided and misleading
+// (it's whatever the creator typed at creation time).
 const CONVERSATIONS_SUB = /* GraphQL */ `
   subscription Conversations {
     conversations(order_by: { created_at: desc }) {
@@ -51,6 +46,13 @@ const CONVERSATIONS_SUB = /* GraphQL */ `
       title
       created_by
       created_at
+      members {
+        user_id
+        user {
+          id
+          username
+        }
+      }
     }
   }
 `;
@@ -60,7 +62,24 @@ type GqlConvRow = {
   title: string;
   created_by: string;
   created_at: string;
+  members: { user_id: string; user: { id: string; username: string } | null }[];
 };
+
+function toContact(c: GqlConvRow, myUserId: string): Contact {
+  // Pick the OTHER member as the display name. For self-chats or group chats
+  // we fall back to the title. Anonymizes nicely if user record disappears.
+  const others = c.members
+    .filter((m) => m.user_id !== myUserId && m.user)
+    .map((m) => m.user!.username);
+
+  const name = others.length === 1 ? others[0] : others.length > 1 ? others.join(", ") : c.title || "chat";
+  return {
+    id: c.id,
+    name,
+    avatar: avatarFor(name),
+    lastSeen: "",
+  };
+}
 
 export function useChat() {
   const { user, token } = useAuth();
@@ -68,8 +87,6 @@ export function useChat() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Hasura live subscription — replaces REST polling for the conversation list.
-  // pause: true while not authed avoids a useless connect that 401s.
   const [{ data: subData, error: subError }] = useSubscription<{
     conversations: GqlConvRow[];
   }>({ query: CONVERSATIONS_SUB, pause: !user || !token });
@@ -78,9 +95,11 @@ export function useChat() {
     if (subError) setError(subError.message);
   }, [subError]);
 
+  const conversations = useMemo(() => subData?.conversations ?? [], [subData]);
+
   const contacts: Contact[] = useMemo(
-    () => (subData?.conversations ?? []).map((c) => toContact(c)),
-    [subData],
+    () => (user ? conversations.map((c) => toContact(c, user.id)) : []),
+    [conversations, user],
   );
 
   // Auto-select the first conversation once they arrive.
@@ -88,7 +107,7 @@ export function useChat() {
     if (contacts.length && !selectedId) setSelectedId(contacts[0].id);
   }, [contacts, selectedId]);
 
-  // ---------- messages: still REST + WebSocket (server holds the cipher key) ----------
+  // ---------- messages: REST + WebSocket (server holds the cipher key) ----------
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -150,14 +169,22 @@ export function useChat() {
 
   const startConversation = useCallback(async (otherUsername: string) => {
     setError(null);
-    // If we already have a 1-1 chat titled with this username, just open it.
-    // Avoids spawning a new row on every click in the People tab.
-    const existing = contacts.find((c) => c.name === otherUsername);
+    if (!user) return;
+
+    // Client-side dedupe: if any existing conversation is a 1-1 with this
+    // username as the other member, just open it. The backend now also
+    // dedupes server-side as the source of truth — this is the fast path.
+    const existing = conversations.find((c) => {
+      const otherMembers = c.members.filter((m) => m.user_id !== user.id);
+      return otherMembers.length === 1 && otherMembers[0].user?.username === otherUsername;
+    });
     if (existing) {
       setSelectedId(existing.id);
       return;
     }
     try {
+      // Title is still sent for back-compat / group-chat fallback, but the UI
+      // ignores it for 1-1 chats and uses the other member's username instead.
       const c = await api.createConversation([otherUsername], otherUsername);
       setSelectedId(c.id);
       return c;
@@ -165,7 +192,7 @@ export function useChat() {
       setError(e instanceof Error ? e.message : "create failed");
       throw e;
     }
-  }, [contacts]);
+  }, [user, conversations]);
 
   const messages = selectedId ? messagesByConv[selectedId] ?? [] : [];
   const allMessages = Object.values(messagesByConv).flat();
