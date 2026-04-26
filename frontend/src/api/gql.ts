@@ -6,8 +6,13 @@ import {
 } from "urql";
 import { createClient as createWSClient } from "graphql-ws";
 
-const HTTP_URL = import.meta.env.VITE_HASURA_URL ?? "";
-const WS_URL = import.meta.env.VITE_HASURA_WS_URL ?? "";
+// Hasura endpoints. When unset, fall back to a clearly-bogus URL so urql's
+// constructor doesn't throw at module load. The subscription will fail to
+// connect and useChat will surface the error, but the app stays renderable.
+const HTTP_URL = import.meta.env.VITE_HASURA_URL || "http://localhost:9999/_unconfigured";
+const WS_URL = import.meta.env.VITE_HASURA_WS_URL || "";
+
+export const gqlConfigured = !!import.meta.env.VITE_HASURA_URL;
 
 let currentToken: string | null = null;
 export function setGqlToken(t: string | null) {
@@ -30,7 +35,7 @@ const wsClient = WS_URL
     })
   : null;
 
-export const gqlClient = new Client({
+export const gqlClient: Client = new Client({
   url: HTTP_URL,
   exchanges: [
     cacheExchange,

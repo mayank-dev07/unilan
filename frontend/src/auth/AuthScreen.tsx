@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 import { useAuth } from "./AuthContext";
+import { useTheme } from "../theme/ThemeContext";
 import { ApiError } from "../api/client";
 
 export default function AuthScreen() {
-  const { login, signup } = useAuth();
+  const { login, signup, loginWithGoogle } = useAuth();
+  const { theme } = useTheme();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -70,11 +73,6 @@ export default function AuthScreen() {
             minLength={8}
             className="bg-paper border border-line rounded-sm px-3 py-2 text-[14px] outline-none focus:border-line-strong"
           />
-          {err && (
-            <p className="text-[12px] text-red-500 border border-red-500/30 bg-red-500/5 rounded-sm px-3 py-2">
-              {err}
-            </p>
-          )}
           <button
             type="submit"
             disabled={busy}
@@ -84,7 +82,44 @@ export default function AuthScreen() {
           </button>
         </form>
 
-        <p className="text-[10px] uppercase tracking-[0.2em] text-ink-dim text-center mt-6">
+        <div className="flex items-center gap-3 my-5">
+          <span className="flex-1 h-px bg-line" />
+          <span className="text-[10px] uppercase tracking-[0.25em] text-ink-dim">or</span>
+          <span className="flex-1 h-px bg-line" />
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            theme={theme === "dark" ? "filled_black" : "outline"}
+            size="large"
+            shape="rectangular"
+            text="continue_with"
+            onSuccess={async (resp) => {
+              if (!resp.credential) {
+                setErr("no credential returned");
+                return;
+              }
+              setErr(null);
+              setBusy(true);
+              try {
+                await loginWithGoogle(resp.credential);
+              } catch (e) {
+                setErr(e instanceof ApiError ? e.message : "google sign in failed");
+              } finally {
+                setBusy(false);
+              }
+            }}
+            onError={() => setErr("google sign in failed")}
+          />
+        </div>
+
+        {err && (
+          <p className="mt-5 text-[12px] text-red-500 border border-red-500/30 bg-red-500/5 rounded-sm px-3 py-2 text-center">
+            {err}
+          </p>
+        )}
+
+        <p className="text-[10px] uppercase tracking-[0.2em] text-ink-dim text-center mt-7">
           backend → {import.meta.env.VITE_API_URL ?? "http://localhost:8080"}
         </p>
       </div>

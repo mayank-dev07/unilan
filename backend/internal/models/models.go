@@ -6,6 +6,10 @@ type User struct {
 	ID           string    `json:"id"`
 	Username     string    `json:"username"`
 	PasswordHash string    `json:"-"`
+	GoogleSub    string    `json:"-"`
+	Email        string    `json:"email,omitempty"`
+	Name         string    `json:"name,omitempty"`
+	Picture      string    `json:"picture,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 

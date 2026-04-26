@@ -17,6 +17,8 @@ type Config struct {
 	JWTTTLHours      int
 	MessageEncKeyHex string
 
+	GoogleClientID string
+
 	OpenRouterKey   string
 	OpenRouterModel string
 	GroqKey         string
@@ -43,6 +45,7 @@ func Load() (*Config, error) {
 		JWTSecret:          os.Getenv("JWT_SECRET"),
 		JWTTTLHours:        getEnvInt("JWT_TTL_HOURS", 72),
 		MessageEncKeyHex:   os.Getenv("MESSAGE_ENC_KEY"),
+		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		OpenRouterKey:      os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterModel:    getEnv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct"),
 		GroqKey:            os.Getenv("GROQ_API_KEY"),
@@ -64,6 +67,9 @@ func Load() (*Config, error) {
 	}
 	if c.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required (Postgres connection string)")
+	}
+	if c.GoogleClientID == "" {
+		return nil, fmt.Errorf("GOOGLE_CLIENT_ID is required")
 	}
 	return c, nil
 }

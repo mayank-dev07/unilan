@@ -64,6 +64,12 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
 
+  googleAuth: (credential: string) =>
+    request<AuthResponse>("/auth/google", {
+      method: "POST",
+      body: JSON.stringify({ credential }),
+    }),
+
   me: () => request<BackendUser>("/me"),
 
   translatePreview: (text: string) =>

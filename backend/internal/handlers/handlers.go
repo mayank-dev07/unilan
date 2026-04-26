@@ -10,15 +10,17 @@ import (
 	"github.com/unilan/unilanbackend/internal/db"
 	"github.com/unilan/unilanbackend/internal/models"
 	"github.com/unilan/unilanbackend/internal/orchestrator"
+	"google.golang.org/api/idtoken"
 )
 
 type Handler struct {
-	DB       *db.DB
-	Issuer   *auth.Issuer
-	Cipher   *crypto.Cipher
-	Orch     *orchestrator.Orchestrator
-	Pipeline *Pipeline
-	Hub      Broadcaster
+	DB             *db.DB
+	Issuer         *auth.Issuer
+	Cipher         *crypto.Cipher
+	Orch           *orchestrator.Orchestrator
+	Pipeline       *Pipeline
+	Hub            Broadcaster
+	GoogleClientID string
 }
 
 // Broadcaster is implemented by the WebSocket hub.
@@ -26,14 +28,15 @@ type Broadcaster interface {
 	Broadcast(conversationID string, msg models.Message)
 }
 
-func New(d *db.DB, issuer *auth.Issuer, c *crypto.Cipher, orch *orchestrator.Orchestrator, hub Broadcaster) *Handler {
+func New(d *db.DB, issuer *auth.Issuer, c *crypto.Cipher, orch *orchestrator.Orchestrator, hub Broadcaster, googleClientID string) *Handler {
 	return &Handler{
-		DB:       d,
-		Issuer:   issuer,
-		Cipher:   c,
-		Orch:     orch,
-		Pipeline: &Pipeline{Orch: orch, Cipher: c},
-		Hub:      hub,
+		DB:             d,
+		Issuer:         issuer,
+		Cipher:         c,
+		Orch:           orch,
+		Pipeline:       &Pipeline{Orch: orch, Cipher: c},
+		Hub:            hub,
+		GoogleClientID: googleClientID,
 	}
 }
 
@@ -75,8 +78,45 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 	user, err := h.DB.GetUserByUsername(req.Username)
-	if err != nil || !auth.CheckPassword(user.PasswordHash, req.Password) {
+	if err != nil || user.PasswordHash == "" || !auth.CheckPassword(user.PasswordHash, req.Password) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		return
+	}
+	tok, err := h.Issuer.Issue(user.ID, user.Username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "token failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"user": user, "token": tok})
+}
+
+type googleAuthReq struct {
+	Credential string `json:"credential" binding:"required"`
+}
+
+func (h *Handler) GoogleAuth(c *gin.Context) {
+	var req googleAuthReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	payload, err := idtoken.Validate(c.Request.Context(), req.Credential, h.GoogleClientID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid google token"})
+		return
+	}
+	if v, ok := payload.Claims["email_verified"].(bool); !ok || !v {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "email not verified"})
+		return
+	}
+	sub := payload.Subject
+	email, _ := payload.Claims["email"].(string)
+	name, _ := payload.Claims["name"].(string)
+	picture, _ := payload.Claims["picture"].(string)
+
+	user, err := h.DB.UpsertGoogleUser(sub, email, name, picture)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	tok, err := h.Issuer.Issue(user.ID, user.Username)

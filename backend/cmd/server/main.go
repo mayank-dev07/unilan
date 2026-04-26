@@ -55,7 +55,7 @@ func main() {
 	}
 
 	hub := ws.NewHub()
-	h := handlers.New(store, issuer, cipher, orch, hub)
+	h := handlers.New(store, issuer, cipher, orch, hub, cfg.GoogleClientID)
 
 	limiter := handlers.NewPerUserLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
 
@@ -86,6 +86,7 @@ func main() {
 
 	r.POST("/auth/signup", h.Signup)
 	r.POST("/auth/login", h.Login)
+	r.POST("/auth/google", h.GoogleAuth)
 
 	r.GET("/ws", ws.Serve(hub, issuer, store))
 

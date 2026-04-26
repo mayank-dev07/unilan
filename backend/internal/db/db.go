@@ -36,9 +36,24 @@ const schema = `
 CREATE TABLE IF NOT EXISTS users (
 	id            TEXT PRIMARY KEY,
 	username      TEXT NOT NULL UNIQUE,
-	password_hash TEXT NOT NULL,
+	password_hash TEXT,
+	google_sub    TEXT,
+	email         TEXT,
+	name          TEXT,
+	picture       TEXT,
 	created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Idempotent migration. Old DBs may have had password_hash NOT NULL or be
+-- missing the Google OAuth columns; this brings everything to the current
+-- shape without dropping data.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub    TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email         TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS name          TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS picture       TEXT;
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_key ON users(google_sub) WHERE google_sub IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS conversations (
 	id         TEXT PRIMARY KEY,

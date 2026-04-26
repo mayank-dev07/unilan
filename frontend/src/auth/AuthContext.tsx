@@ -10,6 +10,7 @@ type AuthState = {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   signup: (username: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
 };
 
@@ -39,7 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate from localStorage on mount.
   useEffect(() => {
     const s = readStored();
     if (s) {
@@ -47,7 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setGqlToken(s.token);
       setTokenState(s.token);
       setUser(s.user);
-      // Verify the token is still valid; on 401 clear it silently.
       api.me().then(setUser).catch(() => {
         writeStored(null);
         setToken(null);
@@ -78,6 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     apply(r.token, r.user);
   }, [apply]);
 
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    const r = await api.googleAuth(credential);
+    apply(r.token, r.user);
+  }, [apply]);
+
   const logout = useCallback(() => {
     setToken(null);
     setGqlToken(null);
@@ -87,8 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthState>(
-    () => ({ user, token, loading, login, signup, logout }),
-    [user, token, loading, login, signup, logout],
+    () => ({ user, token, loading, login, signup, loginWithGoogle, logout }),
+    [user, token, loading, login, signup, loginWithGoogle, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
