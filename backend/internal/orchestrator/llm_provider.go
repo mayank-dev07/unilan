@@ -13,7 +13,8 @@ import (
 )
 
 // LLMProvider wraps an OpenAI-compatible chat-completions endpoint
-// (OpenRouter, Groq, etc.) as a Translator.
+// (OpenRouter, Groq, etc.). Exposes Translate (legacy: → English),
+// TranslateTo (any-to-any), and Romanize (Latin transliteration).
 type LLMProvider struct {
 	name    string
 	baseURL string
@@ -52,25 +53,65 @@ type chatResp struct {
 	} `json:"error,omitempty"`
 }
 
-const sysPrompt = `You are a translation engine. Translate the user's message into clear, natural English.
+const translateSysPrompt = `You are a translation engine. Translate the user's message into clear, natural English.
+Output ONLY the English translation. No quotes, no explanations, no preamble.
+If the input is already English, return it unchanged. Preserve names, numbers, URLs, emoji.`
+
+const romanizeSysPrompt = `You are a romanization (transliteration) engine.
+Convert the user's text into the Latin (English) alphabet by phonetic transliteration ONLY.
+DO NOT translate the meaning. Preserve the original word identity, just spelled with Latin letters.
+
 Rules:
-- Output ONLY the English translation. No quotes, no explanations, no preamble, no notes.
-- If the input is already English, return it unchanged.
-- If the input is a romanized non-English language (e.g. Hinglish, romanized Arabic), translate the meaning into English.
-- Preserve names, numbers, URLs, emoji, and proper nouns.
-- Keep punctuation and capitalization natural for English.`
+- Output ONLY the romanized text. No quotes, no explanations, no preamble.
+- For Chinese: use Hanyu Pinyin WITHOUT tone marks (你好 → "ni hao", 嗨宝贝 → "hai bao bei").
+- For Japanese: use Hepburn romaji (こんにちは → "konnichiwa").
+- For Korean: use Revised Romanization (안녕하세요 → "annyeonghaseyo").
+- For Cyrillic (Russian, Ukrainian): standard transliteration (Привет → "Privet").
+- For Arabic / Hebrew / Persian: ALA-LC or common transliteration.
+- For Devanagari (Hindi, Marathi) / Bengali / Tamil / Telugu: IAST-style without diacritics (नमस्ते → "namaste").
+- For Greek: standard transliteration (Ευχαριστώ → "Efcharisto").
+- For text already in Latin script (English, Spanish, French, etc.): return UNCHANGED.
+- Preserve numbers, punctuation, emoji, URLs, and Latin-script words mixed in.
+- Use lowercase except for the start of sentences and proper nouns.`
 
 func (p *LLMProvider) Translate(ctx context.Context, text, srcLang string) (string, error) {
 	user := text
 	if srcLang != "" && srcLang != "en" {
 		user = "Source language: " + srcLang + "\nText: " + text
 	}
+	return p.complete(ctx, translateSysPrompt, user)
+}
+
+// TranslateTo performs any-to-any translation. If src == dst, returns input
+// unchanged without an LLM call.
+func (p *LLMProvider) TranslateTo(ctx context.Context, text, srcLang, dstLang string) (string, error) {
+	if srcLang == dstLang || dstLang == "" {
+		return text, nil
+	}
+	srcName := LanguageName(srcLang)
+	dstName := LanguageName(dstLang)
+	sys := fmt.Sprintf(`You are a translation engine. Translate the user's message from %s into natural, idiomatic %s.
+Output ONLY the translation in %s. No quotes, no explanations, no preamble, no notes, no transliteration.
+Use the native script of %s. Preserve names, numbers, URLs, and emoji.`, srcName, dstName, dstName, dstName)
+	return p.complete(ctx, sys, text)
+}
+
+// Romanize transliterates non-Latin text to Latin script phonetically.
+func (p *LLMProvider) Romanize(ctx context.Context, text, srcLang string) (string, error) {
+	user := text
+	if srcLang != "" {
+		user = "Source language: " + srcLang + "\nText: " + text
+	}
+	return p.complete(ctx, romanizeSysPrompt, user)
+}
+
+func (p *LLMProvider) complete(ctx context.Context, systemPrompt, userText string) (string, error) {
 	body, err := json.Marshal(chatReq{
 		Model:       p.model,
 		Temperature: 0.1,
 		Messages: []chatMsg{
-			{Role: "system", Content: sysPrompt},
-			{Role: "user", Content: user},
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: userText},
 		},
 	})
 	if err != nil {

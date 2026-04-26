@@ -8,9 +8,11 @@ export type Message = {
 
   // backend-sourced fields (optional so seed data still type-checks during dev)
   unilan?: string;
-  english?: string;
-  original?: string;
+  display?: string;     // text in viewer's language (their script)
+  original?: string;    // sender's raw text
   senderUsername?: string;
+  senderLang?: string;
+  viewerLang?: string;
 
   // optional Cloudinary media on this message
   mediaUrl?: string;

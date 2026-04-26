@@ -52,11 +52,20 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const api = {
   base: BASE,
 
-  signup: (username: string, password: string) =>
+  signup: (username: string, password: string, language?: string) =>
     request<AuthResponse>("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, language: language ?? "" }),
     }),
+
+  setMyLanguage: (language: string) =>
+    request<{ user: BackendUser }>("/me/language", {
+      method: "PATCH",
+      body: JSON.stringify({ language }),
+    }),
+
+  listLanguages: () =>
+    request<import("./types").LanguageInfo[]>("/languages"),
 
   // Authenticated multipart upload to /me/avatar. Pulls the current token
   // from setToken() — caller must ensure auth is set (used in step-2 signup
