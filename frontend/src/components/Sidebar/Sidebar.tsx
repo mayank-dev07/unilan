@@ -4,16 +4,19 @@ import SidebarHeader from "./SidebarHeader";
 import SearchBar from "./SearchBar";
 import ChatListItem from "./ChatListItem";
 import AnimatedList from "../reactbits/AnimatedList";
+import NewChatDialog from "./NewChatDialog";
 
 type Props = {
   contacts: Contact[];
   messages: Message[];
-  selectedId: string;
+  selectedId: string | null;
   onSelect: (id: string) => void;
+  onStartChat: (username: string) => Promise<void>;
 };
 
-export default function Sidebar({ contacts, messages, selectedId, onSelect }: Props) {
+export default function Sidebar({ contacts, messages, selectedId, onSelect, onStartChat }: Props) {
   const [query, setQuery] = useState("");
+  const [newChatOpen, setNewChatOpen] = useState(false);
 
   const filtered = useMemo(
     () => contacts.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())),
@@ -27,7 +30,7 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect }: Pr
 
   return (
     <aside className="w-full md:w-[32%] md:min-w-[340px] md:max-w-[420px] flex flex-col bg-paper border-r border-line">
-      <SidebarHeader />
+      <SidebarHeader onNewChat={() => setNewChatOpen(true)} />
       <SearchBar value={query} onChange={setQuery} />
 
       <div className="flex-1 overflow-y-auto thin-scroll">
@@ -43,11 +46,20 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect }: Pr
           ))}
         </AnimatedList>
         {filtered.length === 0 && (
-          <p className="text-center text-ink-dim text-[11px] tracking-[0.2em] uppercase py-12">
-            no chats found
-          </p>
+          <button
+            onClick={() => setNewChatOpen(true)}
+            className="block w-full text-center text-ink-dim hover:text-ink text-[11px] tracking-[0.2em] uppercase py-12 transition"
+          >
+            no chats — start one
+          </button>
         )}
       </div>
+
+      <NewChatDialog
+        open={newChatOpen}
+        onClose={() => setNewChatOpen(false)}
+        onSubmit={onStartChat}
+      />
     </aside>
   );
 }
