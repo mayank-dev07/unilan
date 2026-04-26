@@ -11,8 +11,10 @@ type Detector struct {
 	d lingua.LanguageDetector
 }
 
-// NewDetector builds a detector pre-loaded with common languages used in chat.
-// Trades a one-time ~50MB load for fast (~1ms) per-call detection.
+// NewDetector builds a detector for common languages used in chat.
+// Uses low-accuracy (trigram-only) models with lazy loading to keep memory
+// footprint small enough for 512Mi containers; first detection per language
+// pays a ~100ms warmup, subsequent calls are ~1ms.
 func NewDetector() *Detector {
 	langs := []lingua.Language{
 		lingua.English,
@@ -46,7 +48,7 @@ func NewDetector() *Detector {
 	return &Detector{
 		d: lingua.NewLanguageDetectorBuilder().
 			FromLanguages(langs...).
-			WithPreloadedLanguageModels().
+			WithLowAccuracyMode().
 			Build(),
 	}
 }
