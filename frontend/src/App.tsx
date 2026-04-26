@@ -7,6 +7,7 @@ import { ThemeProvider } from "./theme/ThemeContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import AuthScreen from "./auth/AuthScreen";
 import { useChat } from "./hooks/useChat";
+import { useIsDesktop } from "./hooks/useIsDesktop";
 import { gqlClient } from "./api/gql";
 
 function ChatApp() {
@@ -27,23 +28,34 @@ function ChatApp() {
     [contacts, selectedId],
   );
 
+  const isDesktop = useIsDesktop();
+  const showSidebar = isDesktop || !selectedContact;
+  const showChat = isDesktop || !!selectedContact;
+
   return (
     <div className="flex h-screen w-screen bg-paper text-ink overflow-hidden relative">
-      <Sidebar
-        contacts={contacts}
-        messages={allMessages}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        onStartChat={async (u) => { await startConversation(u); }}
-      />
-      {selectedContact ? (
-        <ChatWindow
-          contact={selectedContact}
-          messages={messages}
-          onSend={sendMessage}
+      {showSidebar && (
+        <Sidebar
+          contacts={contacts}
+          messages={allMessages}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onStartChat={async (u) => { await startConversation(u); }}
         />
-      ) : (
-        <EmptyState />
+      )}
+      {showChat && (
+        selectedContact ? (
+          <ChatWindow
+            contact={selectedContact}
+            messages={messages}
+            onSend={sendMessage}
+            onBack={isDesktop ? undefined : () => setSelectedId(null)}
+          />
+        ) : (
+          <div className="flex flex-1 min-w-0">
+            <EmptyState />
+          </div>
+        )
       )}
       {error && (
         <div className="absolute bottom-4 right-4 max-w-sm bg-red-500/10 border border-red-500/40 text-red-500 text-[12px] px-4 py-2 rounded-md flex items-center gap-3">

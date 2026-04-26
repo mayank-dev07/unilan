@@ -38,7 +38,9 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect, onSt
   };
 
   return (
-    <aside className="w-full md:w-[32%] md:min-w-[340px] md:max-w-[420px] flex flex-col bg-paper border-r border-line">
+    <aside
+      className="w-full lg:w-[32%] lg:min-w-[340px] lg:max-w-[420px] flex flex-col bg-paper border-r border-line shrink-0"
+    >
       <SidebarHeader />
 
       <div className="flex border-b border-line bg-card">
