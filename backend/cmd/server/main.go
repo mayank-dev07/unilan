@@ -69,7 +69,7 @@ func main() {
 	r.Use(handlers.Recovery(logger))
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.CORSOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
 		ExposeHeaders:    []string{"X-Request-ID"},
 		AllowCredentials: true,
