@@ -102,18 +102,6 @@ export function useChat() {
     [conversations, user],
   );
 
-  // Auto-select the first conversation only on the very first load. After
-  // that we leave selection alone — otherwise hitting "back" on mobile (which
-  // sets selectedId to null) would immediately re-select the first chat and
-  // throw the user right back into the conversation they just left.
-  const hasAutoSelectedRef = useRef(false);
-  useEffect(() => {
-    if (hasAutoSelectedRef.current) return;
-    if (contacts.length && !selectedId) {
-      setSelectedId(contacts[0].id);
-      hasAutoSelectedRef.current = true;
-    }
-  }, [contacts, selectedId]);
 
   // ---------- messages: REST + WebSocket (server holds the cipher key) ----------
   const wsRef = useRef<WebSocket | null>(null);
