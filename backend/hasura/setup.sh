@@ -172,7 +172,7 @@ call "$(cat <<JSON
 {"type":"pg_create_select_permission","args":{
   "source":"$SOURCE","table":"messages","role":"user",
   "permission":{
-    "columns":["id","conversation_id","sender_id","original_ct","english_ct","unilan_ct","created_at"],
+    "columns":["id","conversation_id","sender_id","original_ct","english_ct","unilan_ct","media_url","media_type","created_at"],
     "filter":{"conversation":{"members":{"user_id":{"_eq":"X-Hasura-User-Id"}}}}
   }}}
 JSON

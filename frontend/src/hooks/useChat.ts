@@ -14,6 +14,7 @@ function fmtTime(iso: string): string {
 }
 
 function toMessage(m: BackendMessage, myUserId: string): Message {
+  const mediaType = m.media_type === "image" || m.media_type === "video" ? m.media_type : undefined;
   return {
     id: m.id,
     contactId: m.conversation_id,
@@ -25,6 +26,8 @@ function toMessage(m: BackendMessage, myUserId: string): Message {
     english: m.english_text,
     original: m.original_text,
     senderUsername: m.sender_username,
+    mediaUrl: m.media_url || undefined,
+    mediaType,
   };
 }
 
@@ -264,10 +267,13 @@ export function useChat() {
     }
   }, []);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (
+    text: string,
+    media?: { url: string; type: "image" | "video" },
+  ) => {
     if (!selectedId || !user) return;
     try {
-      const m = await api.sendMessage(selectedId, text);
+      const m = await api.sendMessage(selectedId, text, media);
       setMessagesByConv((prev) => {
         const arr = prev[m.conversation_id] ?? [];
         if (arr.some((x) => x.id === m.id)) return prev;

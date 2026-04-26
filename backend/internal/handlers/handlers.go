@@ -223,7 +223,11 @@ func (h *Handler) ListConversations(c *gin.Context) {
 // ---------- messages ----------
 
 type sendMsgReq struct {
-	Text string `json:"text" binding:"required,max=4000"`
+	// Either text or media_url (or both — media + caption) must be present.
+	// We can't enforce the OR via struct tags so we check inline.
+	Text      string `json:"text" binding:"max=4000"`
+	MediaURL  string `json:"media_url" binding:"max=512"`
+	MediaType string `json:"media_type" binding:"max=16"`
 }
 
 func (h *Handler) ListMessages(c *gin.Context) {
@@ -264,12 +268,23 @@ func (h *Handler) SendMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if strings.TrimSpace(req.Text) == "" && req.MediaURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "text or media_url required"})
+		return
+	}
+	if req.MediaURL != "" && req.MediaType != "image" && req.MediaType != "video" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "media_type must be 'image' or 'video'"})
+		return
+	}
+	// Pipeline tolerates empty text — ciphertexts come back as encrypted empty.
 	res, err := h.Pipeline.Process(c.Request.Context(), req.Text)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "pipeline failed: " + err.Error()})
 		return
 	}
-	row, err := h.DB.InsertMessage(convID, uid, res.OriginalCT, res.EnglishCT, res.UniLanCT)
+	row, err := h.DB.InsertMessage(convID, uid,
+		res.OriginalCT, res.EnglishCT, res.UniLanCT,
+		req.MediaURL, req.MediaType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -282,6 +297,8 @@ func (h *Handler) SendMessage(c *gin.Context) {
 		OriginalText:   res.Original,
 		EnglishText:    res.English,
 		UniLanText:     res.UniLan,
+		MediaURL:       req.MediaURL,
+		MediaType:      req.MediaType,
 		CreatedAt:      time.Now().UTC(),
 	}
 	if h.Hub != nil {
@@ -311,6 +328,8 @@ func (h *Handler) decryptMessage(r db.EncryptedMessage, senderUsername string) (
 		OriginalText:   string(orig),
 		EnglishText:    string(eng),
 		UniLanText:     string(uni),
+		MediaURL:       r.MediaURL,
+		MediaType:      r.MediaType,
 		CreatedAt:      r.CreatedAt,
 	}, nil
 }

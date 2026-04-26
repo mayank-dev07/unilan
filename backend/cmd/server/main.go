@@ -98,6 +98,7 @@ func main() {
 	{
 		api.GET("/me", h.Me)
 		api.POST("/me/avatar", h.UpdateMyAvatar)
+		api.POST("/me/media", h.UploadMedia)
 		api.POST("/translate", h.Translate)
 		api.POST("/conversations", h.CreateConversation)
 		api.GET("/conversations", h.ListConversations)

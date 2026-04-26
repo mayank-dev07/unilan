@@ -81,6 +81,11 @@ CREATE TABLE IF NOT EXISTS messages (
 	created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Idempotent additions for media messages. Old DBs without these columns
+-- get them on next startup; existing rows get NULL → text-only message.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url  TEXT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_type TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
 `
 

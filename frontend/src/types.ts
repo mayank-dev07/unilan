@@ -11,6 +11,10 @@ export type Message = {
   english?: string;
   original?: string;
   senderUsername?: string;
+
+  // optional Cloudinary media on this message
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
 };
 
 export type Contact = {

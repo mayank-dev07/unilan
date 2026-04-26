@@ -13,12 +13,29 @@ import (
 )
 
 const (
-	maxAvatarBytes = 5 << 20 // 5 MB
+	maxAvatarBytes = 5 << 20  // 5 MB
 	avatarFolder   = "unilan/avatars"
+	maxMediaBytes  = 50 << 20 // 50 MB
+	mediaFolder    = "unilan/media"
 )
 
 var allowedAvatarExt = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".webp": true, ".gif": true,
+}
+
+// Images Cloudinary will happily ingest plus the common phone/web video formats.
+var allowedMediaExt = map[string]string{
+	".jpg":  "image",
+	".jpeg": "image",
+	".png":  "image",
+	".webp": "image",
+	".gif":  "image",
+	".heic": "image",
+	".mp4":  "video",
+	".mov":  "video",
+	".webm": "video",
+	".m4v":  "video",
+	".mkv":  "video",
 }
 
 // AvatarUploader wraps a Cloudinary client. nil if not configured — handler
@@ -95,4 +112,66 @@ func (h *Handler) UpdateMyAvatar(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"user": user, "url": res.SecureURL})
+}
+
+// UploadMedia accepts a multipart "file" (image or video) and pushes it to
+// Cloudinary with auto resource detection. Authenticated. Returns
+// {url, type: "image"|"video"} so the frontend can include it on the next
+// SendMessage call. Does NOT update any DB row by itself — the message
+// record is created via POST /conversations/:id/messages.
+func (h *Handler) UploadMedia(c *gin.Context) {
+	if h.Uploader == nil || h.Uploader.cld == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "media upload not configured"})
+		return
+	}
+	if c.GetString(auth.CtxUserID) == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxMediaBytes+1024)
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		if errors.Is(err, http.ErrMissingFile) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing 'file' field"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "could not read file: " + err.Error()})
+		return
+	}
+	defer file.Close()
+
+	if header.Size > maxMediaBytes {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file too large (max 50MB)"})
+		return
+	}
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	mediaType, ok := allowedMediaExt[ext]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported file type"})
+		return
+	}
+
+	uniqueFilename := true
+	overwrite := false
+	res, err := h.Uploader.cld.Upload.Upload(c.Request.Context(), file, uploader.UploadParams{
+		Folder:         mediaFolder,
+		ResourceType:   "auto", // Cloudinary detects image vs video
+		Overwrite:      &overwrite,
+		UniqueFilename: &uniqueFilename,
+	})
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "cloudinary upload failed: " + err.Error()})
+		return
+	}
+	// If Cloudinary disagrees with our extension guess, trust Cloudinary.
+	if res.ResourceType == "video" {
+		mediaType = "video"
+	} else if res.ResourceType == "image" {
+		mediaType = "image"
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"url":  res.SecureURL,
+		"type": mediaType,
+	})
 }
