@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-paper: #e8e5d9;
+  --color-card: #efede3;
+  --color-card-2: #ddd9cb;
+  --color-ink: #0f0f0f;
+  --color-ink-dim: #6b6b6b;
+  --color-line: rgba(15, 15, 15, 0.14);
+  --color-line-strong: rgba(15, 15, 15, 0.28);
+  --color-accent: #5cab94;
+  --color-accent-fg: #0f0f0f;
+  --color-bubble-mine: #0f0f0f;
+  --color-bubble-mine-fg: #efede3;
+  --color-bubble-theirs: #efede3;
+  --color-bubble-theirs-fg: #0f0f0f;
+}
+
+:root.dark {
+  --color-paper: #0e0e0e;
+  --color-card: #1a1a1a;
+  --color-card-2: #232323;
+  --color-ink: #efede3;
+  --color-ink-dim: #8c8b86;
+  --color-line: rgba(239, 237, 227, 0.10);
+  --color-line-strong: rgba(239, 237, 227, 0.22);
+  --color-accent: #5cab94;
+  --color-accent-fg: #0f0f0f;
+  --color-bubble-mine: #efede3;
+  --color-bubble-mine-fg: #0f0f0f;
+  --color-bubble-theirs: #1a1a1a;
+  --color-bubble-theirs-fg: #efede3;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-mono);
+  color: var(--color-ink);
+  background: var(--color-paper);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  letter-spacing: 0.005em;
+}
+
+.paper-grid {
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(to right, var(--color-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -1px -1px;
+}
+
+.thin-scroll::-webkit-scrollbar { width: 8px; }
+.thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 4px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-dim);
+}

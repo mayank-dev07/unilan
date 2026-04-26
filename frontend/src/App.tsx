@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar/Sidebar";
 import ChatWindow from "./components/ChatWindow/ChatWindow";
 import { contacts, messages as seedMessages } from "./data/contacts";
 import type { Message } from "./types";
+import { ThemeProvider } from "./theme/ThemeContext";
 
 export default function App() {
   const [selectedId, setSelectedId] = useState<string>(contacts[0].id);
@@ -35,18 +36,20 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-wa-bg text-wa-text overflow-hidden">
-      <Sidebar
-        contacts={contacts}
-        messages={messages}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-      />
-      <ChatWindow
-        contact={selectedContact}
-        messages={threadMessages}
-        onSend={handleSend}
-      />
-    </div>
+    <ThemeProvider>
+      <div className="flex h-screen w-screen bg-paper text-ink overflow-hidden">
+        <Sidebar
+          contacts={contacts}
+          messages={messages}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+        />
+        <ChatWindow
+          contact={selectedContact}
+          messages={threadMessages}
+          onSend={handleSend}
+        />
+      </div>
+    </ThemeProvider>
   );
 }

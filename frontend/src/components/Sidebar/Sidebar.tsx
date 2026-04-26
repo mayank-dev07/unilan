@@ -26,11 +26,11 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect }: Pr
   };
 
   return (
-    <aside className="w-full md:w-[30%] md:min-w-[340px] md:max-w-[420px] flex flex-col bg-wa-panel border-r border-wa-border">
+    <aside className="w-full md:w-[32%] md:min-w-[340px] md:max-w-[420px] flex flex-col bg-paper border-r border-line">
       <SidebarHeader />
       <SearchBar value={query} onChange={setQuery} />
 
-      <div className="flex-1 overflow-y-auto wa-scroll">
+      <div className="flex-1 overflow-y-auto thin-scroll">
         <AnimatedList>
           {filtered.map((c) => (
             <ChatListItem
@@ -43,7 +43,9 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect }: Pr
           ))}
         </AnimatedList>
         {filtered.length === 0 && (
-          <p className="text-center text-wa-text-dim text-sm py-10">No chats found</p>
+          <p className="text-center text-ink-dim text-[11px] tracking-[0.2em] uppercase py-12">
+            no chats found
+          </p>
         )}
       </div>
     </aside>

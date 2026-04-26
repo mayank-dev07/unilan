@@ -21,28 +21,28 @@ export default function MessageInput({ onSend }: Props) {
   return (
     <form
       onSubmit={submit}
-      className="flex items-center gap-2 px-3 py-2.5 bg-wa-panel-2/70 backdrop-blur-md border-t border-white/10"
+      className="flex items-center gap-2 px-4 py-3 bg-card border-t border-line"
     >
-      <button type="button" className="p-2 text-wa-text-dim hover:text-wa-text transition">
-        <Smile size={22} />
+      <button type="button" tabIndex={-1} className="p-2 text-ink-dim hover:text-ink transition">
+        <Smile size={18} />
       </button>
-      <button type="button" className="p-2 text-wa-text-dim hover:text-wa-text transition">
-        <Paperclip size={22} />
+      <button type="button" tabIndex={-1} className="p-2 text-ink-dim hover:text-ink transition">
+        <Paperclip size={18} />
       </button>
 
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Type a message"
-        className="flex-1 bg-white/5 border border-white/10 text-wa-text placeholder:text-wa-text-dim text-[14.5px] rounded-lg px-4 py-2 outline-none focus:border-white/25 transition"
+        placeholder="type a message"
+        className="flex-1 bg-paper border border-line text-ink placeholder:text-ink-dim text-[13px] rounded-md px-3 py-2 outline-none focus:border-line-strong transition tracking-wide"
       />
 
       <button
         type="submit"
-        className="p-2 text-wa-text-dim hover:text-white transition"
+        className={`p-2 transition ${hasText ? "text-accent hover:text-ink" : "text-ink-dim hover:text-ink"}`}
         title={hasText ? "Send" : "Record"}
       >
-        {hasText ? <Send size={22} /> : <Mic size={22} />}
+        {hasText ? <Send size={18} /> : <Mic size={18} />}
       </button>
     </form>
   );
