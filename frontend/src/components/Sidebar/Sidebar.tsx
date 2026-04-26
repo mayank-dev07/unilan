@@ -4,7 +4,6 @@ import SidebarHeader from "./SidebarHeader";
 import SearchBar from "./SearchBar";
 import ChatListItem from "./ChatListItem";
 import AnimatedList from "../reactbits/AnimatedList";
-import NewChatDialog from "./NewChatDialog";
 import PeopleList from "./PeopleList";
 
 type Tab = "chats" | "people";
@@ -19,7 +18,6 @@ type Props = {
 
 export default function Sidebar({ contacts, messages, selectedId, onSelect, onStartChat }: Props) {
   const [query, setQuery] = useState("");
-  const [newChatOpen, setNewChatOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("chats");
 
   const filtered = useMemo(
@@ -32,8 +30,8 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect, onSt
     return thread[thread.length - 1];
   };
 
-  // When the user picks someone from the People tab, switch back to Chats
-  // so they immediately see the new conversation.
+  // After picking someone from the People tab, jump back to Chats so they see
+  // the new conversation immediately.
   const startChatAndSwitch = async (username: string) => {
     await onStartChat(username);
     setTab("chats");
@@ -41,7 +39,7 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect, onSt
 
   return (
     <aside className="w-full md:w-[32%] md:min-w-[340px] md:max-w-[420px] flex flex-col bg-paper border-r border-line">
-      <SidebarHeader onNewChat={() => setNewChatOpen(true)} />
+      <SidebarHeader />
 
       <div className="flex border-b border-line bg-card">
         {(["chats", "people"] as const).map((t) => (
@@ -89,12 +87,6 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect, onSt
           <PeopleList onStartChat={startChatAndSwitch} />
         )}
       </div>
-
-      <NewChatDialog
-        open={newChatOpen}
-        onClose={() => setNewChatOpen(false)}
-        onSubmit={onStartChat}
-      />
     </aside>
   );
 }

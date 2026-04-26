@@ -5,7 +5,7 @@ type Props = { contact: Contact };
 
 export default function ChatHeader({ contact }: Props) {
   return (
-    <div className="flex items-center justify-between px-5 py-3 bg-card border-b border-line">
+    <div className="flex items-center justify-between px-5 h-16 bg-card border-b border-line">
       <div className="flex items-center gap-3 min-w-0">
         <img
           src={contact.avatar}

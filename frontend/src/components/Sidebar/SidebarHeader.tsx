@@ -1,18 +1,14 @@
-import { MessageSquarePlus, MoreVertical, Sun, Moon, LogOut } from "lucide-react";
+import { MoreVertical, Sun, Moon, LogOut } from "lucide-react";
 import { useTheme } from "../../theme/ThemeContext";
 import { useAuth } from "../../auth/AuthContext";
 
-type Props = {
-  onNewChat: () => void;
-};
-
-export default function SidebarHeader({ onNewChat }: Props) {
+export default function SidebarHeader() {
   const { theme, toggle } = useTheme();
   const { user, logout } = useAuth();
   const initial = user?.username?.[0]?.toUpperCase() ?? "?";
 
   return (
-    <div className="flex items-center justify-between px-5 py-4 bg-card border-b border-line">
+    <div className="flex items-center justify-between px-5 h-16 bg-card border-b border-line">
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-9 h-9 rounded-full bg-accent text-accent-fg flex items-center justify-center font-serif text-[15px] ring-1 ring-line">
           {initial}
@@ -33,13 +29,6 @@ export default function SidebarHeader({ onNewChat }: Props) {
           title={theme === "light" ? "Switch to dark" : "Switch to light"}
         >
           {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
-        </button>
-        <button
-          onClick={onNewChat}
-          className="p-2 rounded-md hover:bg-card-2 hover:text-ink transition"
-          title="New chat"
-        >
-          <MessageSquarePlus size={17} />
         </button>
         <button
           onClick={logout}

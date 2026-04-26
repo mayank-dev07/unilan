@@ -11,7 +11,7 @@ type Props = {
 
 export default function ChatWindow({ contact, messages, onSend }: Props) {
   return (
-    <main className="flex-1 flex flex-col min-w-0 paper-grid">
+    <main className="flex-1 flex flex-col min-w-0 chat-bg">
       <ChatHeader contact={contact} />
       <MessageList messages={messages} />
       <MessageInput onSend={onSend} />

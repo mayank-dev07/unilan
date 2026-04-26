@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -60,7 +61,13 @@ func (h *Handler) Signup(c *gin.Context) {
 	}
 	user, err := h.DB.CreateUser(req.Username, hash)
 	if err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "username taken"})
+		// 23505 is Postgres' unique_violation. Anything else is an actual server
+		// error — don't pretend the username is taken.
+		if strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "duplicate key") {
+			c.JSON(http.StatusConflict, gin.H{"error": "username taken"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "create user failed: " + err.Error()})
 		return
 	}
 	tok, err := h.Issuer.Issue(user.ID, user.Username)

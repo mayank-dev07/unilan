@@ -150,9 +150,14 @@ export function useChat() {
 
   const startConversation = useCallback(async (otherUsername: string) => {
     setError(null);
+    // If we already have a 1-1 chat titled with this username, just open it.
+    // Avoids spawning a new row on every click in the People tab.
+    const existing = contacts.find((c) => c.name === otherUsername);
+    if (existing) {
+      setSelectedId(existing.id);
+      return;
+    }
     try {
-      // Just create it via REST. The Hasura subscription will pick it up
-      // and append it to `contacts` automatically — no manual refresh.
       const c = await api.createConversation([otherUsername], otherUsername);
       setSelectedId(c.id);
       return c;
@@ -160,7 +165,7 @@ export function useChat() {
       setError(e instanceof Error ? e.message : "create failed");
       throw e;
     }
-  }, []);
+  }, [contacts]);
 
   const messages = selectedId ? messagesByConv[selectedId] ?? [] : [];
   const allMessages = Object.values(messagesByConv).flat();

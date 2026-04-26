@@ -61,6 +61,14 @@ body {
   background-position: -1px -1px;
 }
 
+/* WhatsApp-style chat backdrop, but using UNI LAN glyphs as the motif. */
+.chat-bg {
+  background-color: var(--color-paper);
+  background-image: url("/chat-pattern.svg");
+  background-repeat: repeat;
+  background-size: 280px 280px;
+}
+
 .thin-scroll::-webkit-scrollbar { width: 8px; }
 .thin-scroll::-webkit-scrollbar-track { background: transparent; }
 .thin-scroll::-webkit-scrollbar-thumb {
