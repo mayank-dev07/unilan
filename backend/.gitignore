@@ -1,0 +1,14 @@
+.env
+.env.local
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+# compiled binaries (root-only, so cmd/server/ is not matched)
+/unilanbackend
+/server
+bin/
+tmp/
+.DS_Store
+.idea/
+.vscode/
