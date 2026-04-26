@@ -11,6 +11,16 @@ export default function ChatHeader({ contact, onBack }: Props) {
   return (
     <div className="flex items-center justify-between px-5 h-16 bg-card border-b border-line">
       <div className="flex items-center gap-3 min-w-0">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="lg:hidden -ml-2 p-2 rounded-md text-ink-dim hover:bg-card-2 hover:text-ink transition"
+            title="Back to chats"
+            aria-label="Back to chats"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        )}
         <UserAvatar
           name={contact.name}
           url={contact.avatar}

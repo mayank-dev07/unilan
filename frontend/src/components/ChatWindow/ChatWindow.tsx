@@ -10,9 +10,10 @@ type Props = {
   onSend: (text: string) => void;
   onTyping?: (typing: boolean) => void;
   typingUsers?: string[];
+  onBack?: () => void;
 };
 
-export default function ChatWindow({ contact, messages, onSend, onTyping, typingUsers = [] }: Props) {
+export default function ChatWindow({ contact, messages, onSend, onTyping, typingUsers = [], onBack }: Props) {
   return (
     <main className="flex-1 flex flex-col min-w-0 chat-bg">
       <ChatHeader contact={contact} onBack={onBack} />
