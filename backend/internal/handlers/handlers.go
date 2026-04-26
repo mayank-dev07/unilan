@@ -22,6 +22,7 @@ type Handler struct {
 	Pipeline       *Pipeline
 	Hub            Broadcaster
 	GoogleClientID string
+	Uploader       *AvatarUploader
 }
 
 // Broadcaster is implemented by the WebSocket hub.
@@ -29,7 +30,7 @@ type Broadcaster interface {
 	Broadcast(conversationID string, msg models.Message)
 }
 
-func New(d *db.DB, issuer *auth.Issuer, c *crypto.Cipher, orch *orchestrator.Orchestrator, hub Broadcaster, googleClientID string) *Handler {
+func New(d *db.DB, issuer *auth.Issuer, c *crypto.Cipher, orch *orchestrator.Orchestrator, hub Broadcaster, googleClientID string, uploader *AvatarUploader) *Handler {
 	return &Handler{
 		DB:             d,
 		Issuer:         issuer,
@@ -38,6 +39,7 @@ func New(d *db.DB, issuer *auth.Issuer, c *crypto.Cipher, orch *orchestrator.Orc
 		Pipeline:       &Pipeline{Orch: orch, Cipher: c},
 		Hub:            hub,
 		GoogleClientID: googleClientID,
+		Uploader:       uploader,
 	}
 }
 
@@ -59,10 +61,9 @@ func (h *Handler) Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "hash failed"})
 		return
 	}
+	// Avatar comes in a second step via POST /me/avatar.
 	user, err := h.DB.CreateUser(req.Username, hash)
 	if err != nil {
-		// 23505 is Postgres' unique_violation. Anything else is an actual server
-		// error — don't pretend the username is taken.
 		if strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "duplicate key") {
 			c.JSON(http.StatusConflict, gin.H{"error": "username taken"})
 			return

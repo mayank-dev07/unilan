@@ -138,7 +138,7 @@ call "$(cat <<JSON
 {"type":"pg_create_select_permission","args":{
   "source":"$SOURCE","table":"users","role":"user",
   "permission":{
-    "columns":["id","username","created_at"],
+    "columns":["id","username","picture","name","created_at"],
     "filter":{},
     "allow_aggregations":true
   }}}

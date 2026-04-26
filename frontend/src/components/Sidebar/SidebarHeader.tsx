@@ -1,18 +1,21 @@
 import { MoreVertical, Sun, Moon, LogOut } from "lucide-react";
 import { useTheme } from "../../theme/ThemeContext";
 import { useAuth } from "../../auth/AuthContext";
+import UserAvatar from "../UserAvatar";
 
 export default function SidebarHeader() {
   const { theme, toggle } = useTheme();
   const { user, logout } = useAuth();
-  const initial = user?.username?.[0]?.toUpperCase() ?? "?";
 
   return (
     <div className="flex items-center justify-between px-5 h-16 bg-card border-b border-line">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 rounded-full bg-accent text-accent-fg flex items-center justify-center font-serif text-[15px] ring-1 ring-line">
-          {initial}
-        </div>
+        <UserAvatar
+          name={user?.username ?? "?"}
+          url={user?.picture}
+          size="w-9 h-9"
+          textSize="text-[15px]"
+        />
         <div className="flex flex-col min-w-0">
           <span className="text-[13px] text-ink truncate font-medium leading-tight">
             {user?.username ?? "—"}

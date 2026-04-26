@@ -40,7 +40,9 @@ func (h *Hub) Unregister(c *Client) {
 	}
 }
 
-// Broadcast implements handlers.Broadcaster.
+// Broadcast implements handlers.Broadcaster — fans a new message out to every
+// client subscribed to this conversation, including the sender (frontend
+// dedupes by message id).
 func (h *Hub) Broadcast(conversationID string, msg models.Message) {
 	payload, err := json.Marshal(map[string]any{
 		"type":    "message",
@@ -57,6 +59,34 @@ func (h *Hub) Broadcast(conversationID string, msg models.Message) {
 		case c.send <- payload:
 		default:
 			// slow consumer; drop
+		}
+	}
+}
+
+// BroadcastTyping fans a typing-state change out to every client in this
+// conversation EXCEPT the sender (the typist doesn't need to see their own
+// indicator).
+func (h *Hub) BroadcastTyping(conversationID string, fromClient *Client, typing bool) {
+	payload, err := json.Marshal(map[string]any{
+		"type":            "typing",
+		"conversation_id": conversationID,
+		"user_id":         fromClient.UserID,
+		"username":        fromClient.Username,
+		"typing":          typing,
+	})
+	if err != nil {
+		log.Printf("ws: typing marshal: %v", err)
+		return
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.clients[conversationID] {
+		if c == fromClient {
+			continue
+		}
+		select {
+		case c.send <- payload:
+		default:
 		}
 	}
 }

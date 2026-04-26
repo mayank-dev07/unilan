@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -20,7 +21,7 @@ const (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true }, // CORS handled at HTTP layer
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 // Client is a single websocket connection scoped to one conversation.
@@ -28,12 +29,19 @@ type Client struct {
 	Hub            *Hub
 	Conn           *websocket.Conn
 	UserID         string
+	Username       string
 	ConversationID string
 	send           chan []byte
 }
 
-// Serve upgrades the request and starts the read/write pumps.
-// Auth: ?token=<jwt>&conversation_id=<id>
+// inboundFrame matches the JSON the frontend sends over WS. Only "typing"
+// is supported today; messages still go through REST so the encryption
+// pipeline runs on the server.
+type inboundFrame struct {
+	Type   string `json:"type"`
+	Typing bool   `json:"typing"`
+}
+
 func Serve(hub *Hub, issuer *auth.Issuer, d *db.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := c.Query("token")
@@ -59,6 +67,7 @@ func Serve(hub *Hub, issuer *auth.Issuer, d *db.DB) gin.HandlerFunc {
 			Hub:            hub,
 			Conn:           conn,
 			UserID:         claims.UserID,
+			Username:       claims.Username,
 			ConversationID: convID,
 			send:           make(chan []byte, 32),
 		}
@@ -80,10 +89,17 @@ func (c *Client) readPump() {
 		return nil
 	})
 	for {
-		// We don't accept inbound messages over WS for now — clients send via REST.
-		// Drain to detect disconnects and to honor pings.
-		if _, _, err := c.Conn.ReadMessage(); err != nil {
+		_, raw, err := c.Conn.ReadMessage()
+		if err != nil {
 			return
+		}
+		var f inboundFrame
+		if err := json.Unmarshal(raw, &f); err != nil {
+			continue // ignore malformed frames; keep the connection alive
+		}
+		switch f.Type {
+		case "typing":
+			c.Hub.BroadcastTyping(c.ConversationID, c, f.Typing)
 		}
 	}
 }

@@ -55,7 +55,11 @@ func main() {
 	}
 
 	hub := ws.NewHub()
-	h := handlers.New(store, issuer, cipher, orch, hub, cfg.GoogleClientID)
+	uploader := handlers.NewAvatarUploader(cfg.CloudinaryURL)
+	if cfg.CloudinaryURL == "" {
+		logger.Warn("CLOUDINARY_URL not set; avatar upload endpoint will return 503")
+	}
+	h := handlers.New(store, issuer, cipher, orch, hub, cfg.GoogleClientID, uploader)
 
 	limiter := handlers.NewPerUserLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
 
@@ -93,6 +97,7 @@ func main() {
 	api := r.Group("/", auth.Middleware(issuer), limiter.Middleware())
 	{
 		api.GET("/me", h.Me)
+		api.POST("/me/avatar", h.UpdateMyAvatar)
 		api.POST("/translate", h.Translate)
 		api.POST("/conversations", h.CreateConversation)
 		api.GET("/conversations", h.ListConversations)

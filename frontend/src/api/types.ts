@@ -3,6 +3,9 @@
 export type BackendUser = {
   id: string;
   username: string;
+  picture?: string | null;
+  name?: string | null;
+  email?: string | null;
   created_at: string;
 };
 

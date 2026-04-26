@@ -1,5 +1,6 @@
 import { ArrowLeft, Phone, Search, Video, MoreVertical } from "lucide-react";
 import type { Contact } from "../../types";
+import UserAvatar from "../UserAvatar";
 
 type Props = {
   contact: Contact;
@@ -10,20 +11,11 @@ export default function ChatHeader({ contact, onBack }: Props) {
   return (
     <div className="flex items-center justify-between px-5 h-16 bg-card border-b border-line">
       <div className="flex items-center gap-3 min-w-0">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="lg:hidden -ml-2 p-2 rounded-md text-ink-dim hover:bg-card-2 hover:text-ink transition"
-            title="Back to chats"
-            aria-label="Back to chats"
-          >
-            <ArrowLeft size={20} />
-          </button>
-        )}
-        <img
-          src={contact.avatar}
-          alt={contact.name}
-          className="w-10 h-10 rounded-full object-cover ring-1 ring-line"
+        <UserAvatar
+          name={contact.name}
+          url={contact.avatar}
+          size="w-10 h-10"
+          textSize="text-[15px]"
         />
         <div className="min-w-0">
           <div className="font-serif text-[19px] leading-tight text-ink font-medium truncate">

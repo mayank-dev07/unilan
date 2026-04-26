@@ -58,6 +58,25 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
 
+  // Authenticated multipart upload to /me/avatar. Pulls the current token
+  // from setToken() — caller must ensure auth is set (used in step-2 signup
+  // before AuthContext has finalized).
+  updateMyAvatar: async (file: File): Promise<{ user: BackendUser; url: string }> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const headers: Record<string, string> = {};
+    if (currentToken) headers.Authorization = `Bearer ${currentToken}`;
+    const res = await fetch(`${BASE}/me/avatar`, { method: "POST", body: fd, headers });
+    const text = await res.text();
+    let data: any = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    if (!res.ok) {
+      const msg = (data && typeof data === "object" && data.error) || `HTTP ${res.status}`;
+      throw new ApiError(res.status, String(msg));
+    }
+    return data as { user: BackendUser; url: string };
+  },
+
   login: (username: string, password: string) =>
     request<AuthResponse>("/auth/login", {
       method: "POST",

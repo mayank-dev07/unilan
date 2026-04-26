@@ -1,16 +1,10 @@
 import { useState } from "react";
 import { useUsers } from "../../hooks/useUsers";
+import UserAvatar from "../UserAvatar";
 
 type Props = {
   onStartChat: (username: string) => Promise<void>;
 };
-
-function avatarFor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const idx = (Math.abs(h) % 70) + 1;
-  return `https://i.pravatar.cc/120?img=${idx}`;
-}
 
 export default function PeopleList({ onStartChat }: Props) {
   const { users, loading, error } = useUsers();
@@ -56,10 +50,11 @@ export default function PeopleList({ onStartChat }: Props) {
             onClick={() => click(u.username)}
             className="w-full flex items-center gap-3 px-4 py-3 text-left transition border-b border-line hover:bg-card/60 disabled:opacity-60"
           >
-            <img
-              src={avatarFor(u.username)}
-              alt={u.username}
-              className="w-11 h-11 rounded-full object-cover ring-1 ring-line shrink-0"
+            <UserAvatar
+              name={u.username}
+              url={u.picture}
+              size="w-11 h-11"
+              textSize="text-[16px]"
             />
             <div className="flex-1 min-w-0">
               <div className="font-serif text-[15px] text-ink truncate font-medium leading-tight">

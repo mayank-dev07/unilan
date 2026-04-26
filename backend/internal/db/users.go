@@ -11,13 +11,31 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
-// CreateUser registers a new username/password user. PasswordHash should be
-// pre-hashed (bcrypt). Google users come in via UpsertGoogleUser instead.
+// CreateUser registers a new username/password user with no avatar.
+// Kept for back-compat; new code should call CreateUserWithPicture.
 func (d *DB) CreateUser(username, passwordHash string) (*models.User, error) {
+	return d.CreateUserWithPicture(username, passwordHash, "")
+}
+
+// UpdateUserPicture sets the avatar URL on an existing user. Empty string
+// clears it (NULLs the column).
+func (d *DB) UpdateUserPicture(userID, picture string) (*models.User, error) {
+	if _, err := d.Exec(
+		`UPDATE users SET picture = NULLIF($1, '') WHERE id = $2`,
+		picture, userID,
+	); err != nil {
+		return nil, err
+	}
+	return d.GetUserByID(userID)
+}
+
+// CreateUserWithPicture registers a new user, optionally with an avatar URL
+// (typically the Cloudinary secure_url returned by the upload handler).
+func (d *DB) CreateUserWithPicture(username, passwordHash, picture string) (*models.User, error) {
 	id := uuid.NewString()
 	_, err := d.Exec(
-		`INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)`,
-		id, username, passwordHash,
+		`INSERT INTO users (id, username, password_hash, picture) VALUES ($1, $2, $3, NULLIF($4, ''))`,
+		id, username, passwordHash, picture,
 	)
 	if err != nil {
 		return nil, err

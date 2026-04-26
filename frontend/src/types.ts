@@ -15,8 +15,8 @@ export type Message = {
 
 export type Contact = {
   id: string;          // conversation_id
-  name: string;        // conversation title (other user's username for 1-1 chats)
-  avatar: string;
+  name: string;        // other user's username for 1-1 chats
+  avatar?: string | null;  // URL of uploaded picture, if any (else letter avatar)
   lastSeen: string;
   online?: boolean;
   unread?: number;

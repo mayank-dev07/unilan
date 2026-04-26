@@ -1,5 +1,6 @@
 import { Check, CheckCheck } from "lucide-react";
 import type { Contact, Message } from "../../types";
+import UserAvatar from "../UserAvatar";
 
 type Props = {
   contact: Contact;
@@ -15,16 +16,13 @@ export default function ChatListItem({ contact, lastMessage, active, onClick }: 
       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition border-b border-line
         ${active ? "bg-card" : "hover:bg-card/60"}`}
     >
-      <div className="relative shrink-0">
-        <img
-          src={contact.avatar}
-          alt={contact.name}
-          className="w-11 h-11 rounded-full object-cover ring-1 ring-line"
-        />
-        {contact.online && (
-          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-accent rounded-full ring-2 ring-paper" />
-        )}
-      </div>
+      <UserAvatar
+        name={contact.name}
+        url={contact.avatar}
+        size="w-11 h-11"
+        textSize="text-[16px]"
+        online={contact.online}
+      />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
@@ -47,8 +45,8 @@ export default function ChatListItem({ contact, lastMessage, active, onClick }: 
             {lastMessage?.text ?? "—"}
           </span>
           {contact.unread ? (
-            <span className="ml-2 shrink-0 bg-accent text-accent-fg text-[10px] font-semibold rounded-sm px-1.5 py-0.5 uppercase tracking-wider">
-              {contact.unread}
+            <span className="ml-2 shrink-0 bg-accent text-accent-fg text-[10px] font-semibold rounded-full min-w-[18px] h-[18px] px-1.5 inline-flex items-center justify-center leading-none">
+              {contact.unread > 99 ? "99+" : contact.unread}
             </span>
           ) : null}
         </div>

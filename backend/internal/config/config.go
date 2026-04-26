@@ -18,6 +18,7 @@ type Config struct {
 	MessageEncKeyHex string
 
 	GoogleClientID string
+	CloudinaryURL  string
 
 	OpenRouterKey   string
 	OpenRouterModel string
@@ -46,6 +47,7 @@ func Load() (*Config, error) {
 		JWTTTLHours:        getEnvInt("JWT_TTL_HOURS", 72),
 		MessageEncKeyHex:   os.Getenv("MESSAGE_ENC_KEY"),
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		CloudinaryURL:      os.Getenv("CLOUDINARY_URL"),
 		OpenRouterKey:      os.Getenv("OPENROUTER_API_KEY"),
 		OpenRouterModel:    getEnv("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct"),
 		GroqKey:            os.Getenv("GROQ_API_KEY"),

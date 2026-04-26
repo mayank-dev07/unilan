@@ -7,6 +7,7 @@ const USERS_SUB = /* GraphQL */ `
     users(order_by: { username: asc }) {
       id
       username
+      picture
       created_at
     }
   }
@@ -15,6 +16,7 @@ const USERS_SUB = /* GraphQL */ `
 export type DirectoryUser = {
   id: string;
   username: string;
+  picture: string | null;
   created_at: string;
 };
 
@@ -24,7 +26,6 @@ export function useUsers() {
     { query: USERS_SUB, pause: !user || !token },
   );
 
-  // Hide self from the directory.
   const users = useMemo(
     () => (data?.users ?? []).filter((u) => u.id !== user?.id),
     [data, user?.id],

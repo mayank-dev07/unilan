@@ -18,6 +18,8 @@ function ChatApp() {
     selectedId,
     setSelectedId,
     sendMessage,
+    sendTyping,
+    typingUsers,
     startConversation,
     error,
     clearError,
@@ -49,6 +51,8 @@ function ChatApp() {
             contact={selectedContact}
             messages={messages}
             onSend={sendMessage}
+            onTyping={sendTyping}
+            typingUsers={typingUsers}
             onBack={isDesktop ? undefined : () => setSelectedId(null)}
           />
         ) : (
