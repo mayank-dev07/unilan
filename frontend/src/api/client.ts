@@ -110,11 +110,38 @@ export const api = {
       (m) => m ?? [],
     ),
 
-  sendMessage: (conversationId: string, text: string) =>
+  sendMessage: (
+    conversationId: string,
+    text: string,
+    media?: { url: string; type: "image" | "video" },
+  ) =>
     request<BackendMessage>(`/conversations/${conversationId}/messages`, {
       method: "POST",
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({
+        text,
+        media_url: media?.url ?? "",
+        media_type: media?.type ?? "",
+      }),
     }),
+
+  // Authenticated multipart upload of an image or video to Cloudinary via
+  // the backend. Returns a Cloudinary URL + detected type — pass straight
+  // into sendMessage().
+  uploadMedia: async (file: File): Promise<{ url: string; type: "image" | "video" }> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const headers: Record<string, string> = {};
+    if (currentToken) headers.Authorization = `Bearer ${currentToken}`;
+    const res = await fetch(`${BASE}/me/media`, { method: "POST", body: fd, headers });
+    const text = await res.text();
+    let data: any = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    if (!res.ok) {
+      const msg = (data && typeof data === "object" && data.error) || `HTTP ${res.status}`;
+      throw new ApiError(res.status, String(msg));
+    }
+    return data as { url: string; type: "image" | "video" };
+  },
 
   wsURL: (conversationId: string, token: string) => {
     const u = new URL(BASE);

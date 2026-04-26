@@ -28,5 +28,7 @@ type Message struct {
 	OriginalText   string    `json:"original_text"`  // what the user typed
 	EnglishText    string    `json:"english_text"`   // post-LLM translation
 	UniLanText     string    `json:"unilan_text"`    // mapped UNI LAN
+	MediaURL       string    `json:"media_url,omitempty"`
+	MediaType      string    `json:"media_type,omitempty"` // "image" | "video"
 	CreatedAt      time.Time `json:"created_at"`
 }

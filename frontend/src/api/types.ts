@@ -24,6 +24,8 @@ export type BackendMessage = {
   original_text: string;
   english_text: string;
   unilan_text: string;
+  media_url?: string;
+  media_type?: "image" | "video" | "";
   created_at: string;
 };
 
