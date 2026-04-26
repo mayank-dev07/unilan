@@ -7,9 +7,19 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// HasuraClaims is the namespaced claim Hasura reads to derive the user role
+// and user ID from a JWT. See:
+// https://hasura.io/docs/latest/auth/authentication/jwt/
+type HasuraClaims struct {
+	AllowedRoles []string `json:"x-hasura-allowed-roles"`
+	DefaultRole  string   `json:"x-hasura-default-role"`
+	UserID       string   `json:"x-hasura-user-id"`
+}
+
 type Claims struct {
-	UserID   string `json:"uid"`
-	Username string `json:"usr"`
+	UserID   string       `json:"uid"`
+	Username string       `json:"usr"`
+	Hasura   HasuraClaims `json:"https://hasura.io/jwt/claims"`
 	jwt.RegisteredClaims
 }
 
@@ -30,6 +40,11 @@ func (i *Issuer) Issue(userID, username string) (string, error) {
 	claims := Claims{
 		UserID:   userID,
 		Username: username,
+		Hasura: HasuraClaims{
+			AllowedRoles: []string{"user"},
+			DefaultRole:  "user",
+			UserID:       userID,
+		},
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(i.ttl)),

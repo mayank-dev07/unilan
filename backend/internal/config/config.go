@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Port             string
 	GinMode          string
-	DBPath           string
+	DatabaseURL      string
 	JWTSecret        string
 	JWTTTLHours      int
 	MessageEncKeyHex string
@@ -39,7 +39,7 @@ func Load() (*Config, error) {
 	c := &Config{
 		Port:               getEnv("PORT", "8080"),
 		GinMode:            getEnv("GIN_MODE", "debug"),
-		DBPath:             getEnv("DB_PATH", "./unilan.db"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
 		JWTSecret:          os.Getenv("JWT_SECRET"),
 		JWTTTLHours:        getEnvInt("JWT_TTL_HOURS", 72),
 		MessageEncKeyHex:   os.Getenv("MESSAGE_ENC_KEY"),
@@ -61,6 +61,9 @@ func Load() (*Config, error) {
 	}
 	if c.MessageEncKeyHex == "" {
 		return nil, fmt.Errorf("MESSAGE_ENC_KEY is required (64 hex chars)")
+	}
+	if c.DatabaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is required (Postgres connection string)")
 	}
 	return c, nil
 }

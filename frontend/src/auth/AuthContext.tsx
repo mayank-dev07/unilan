@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { api, setToken } from "../api/client";
+import { setGqlToken } from "../api/gql";
 import type { BackendUser } from "../api/types";
 
 type AuthState = {
@@ -43,12 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const s = readStored();
     if (s) {
       setToken(s.token);
+      setGqlToken(s.token);
       setTokenState(s.token);
       setUser(s.user);
       // Verify the token is still valid; on 401 clear it silently.
       api.me().then(setUser).catch(() => {
         writeStored(null);
         setToken(null);
+        setGqlToken(null);
         setTokenState(null);
         setUser(null);
       }).finally(() => setLoading(false));
@@ -59,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const apply = useCallback((tok: string, u: BackendUser) => {
     setToken(tok);
+    setGqlToken(tok);
     setTokenState(tok);
     setUser(u);
     writeStored({ token: tok, user: u });
@@ -76,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setToken(null);
+    setGqlToken(null);
     setTokenState(null);
     setUser(null);
     writeStored(null);

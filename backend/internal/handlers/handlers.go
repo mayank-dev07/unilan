@@ -243,10 +243,6 @@ func (h *Handler) decryptMessage(r db.EncryptedMessage, senderUsername string) (
 	if err != nil {
 		return models.Message{}, err
 	}
-	t, _ := time.Parse(time.RFC3339, r.CreatedAt)
-	if t.IsZero() {
-		t, _ = time.Parse("2006-01-02 15:04:05", r.CreatedAt)
-	}
 	return models.Message{
 		ID:             r.ID,
 		ConversationID: r.ConversationID,
@@ -255,7 +251,7 @@ func (h *Handler) decryptMessage(r db.EncryptedMessage, senderUsername string) (
 		OriginalText:   string(orig),
 		EnglishText:    string(eng),
 		UniLanText:     string(uni),
-		CreatedAt:      t,
+		CreatedAt:      r.CreatedAt,
 	}, nil
 }
 

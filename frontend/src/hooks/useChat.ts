@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSubscription } from "urql";
 import { api } from "../api/client";
 import type { BackendConversation, BackendMessage } from "../api/types";
 import type { Contact, Message } from "../types";
@@ -11,8 +12,7 @@ function fmtTime(iso: string): string {
 }
 
 function avatarFor(seed: string): string {
-  // Deterministic placeholder avatar from username/title.
-  const idx = Math.abs(hash(seed)) % 70 + 1;
+  const idx = (Math.abs(hash(seed)) % 70) + 1;
   return `https://i.pravatar.cc/120?img=${idx}`;
 }
 function hash(s: string): number {
@@ -23,12 +23,7 @@ function hash(s: string): number {
 
 function toContact(c: BackendConversation): Contact {
   const name = c.title || "chat";
-  return {
-    id: c.id,
-    name,
-    avatar: avatarFor(name),
-    lastSeen: "",
-  };
+  return { id: c.id, name, avatar: avatarFor(name), lastSeen: "" };
 }
 
 function toMessage(m: BackendMessage, myUserId: string): Message {
@@ -46,33 +41,56 @@ function toMessage(m: BackendMessage, myUserId: string): Message {
   };
 }
 
+// Live conversations subscription via Hasura. Hasura's row-level permission
+// (set in hasura/setup.sh) ensures we only get conversations where the
+// authenticated user is a member.
+const CONVERSATIONS_SUB = /* GraphQL */ `
+  subscription Conversations {
+    conversations(order_by: { created_at: desc }) {
+      id
+      title
+      created_by
+      created_at
+    }
+  }
+`;
+
+type GqlConvRow = {
+  id: string;
+  title: string;
+  created_by: string;
+  created_at: string;
+};
+
 export function useChat() {
   const { user, token } = useAuth();
-  const [contacts, setContacts] = useState<Contact[]>([]);
   const [messagesByConv, setMessagesByConv] = useState<Record<string, Message[]>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
-
-  // Load conversations on mount.
-  const refreshConversations = useCallback(async () => {
-    if (!user) return;
-    try {
-      const list = await api.listConversations();
-      const cs = (list ?? []).map(toContact);
-      setContacts(cs);
-      if (cs.length && !selectedId) setSelectedId(cs[0].id);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
-    }
-  }, [user, selectedId]);
+  // Hasura live subscription — replaces REST polling for the conversation list.
+  // pause: true while not authed avoids a useless connect that 401s.
+  const [{ data: subData, error: subError }] = useSubscription<{
+    conversations: GqlConvRow[];
+  }>({ query: CONVERSATIONS_SUB, pause: !user || !token });
 
   useEffect(() => {
-    refreshConversations();
-  }, [refreshConversations]);
+    if (subError) setError(subError.message);
+  }, [subError]);
 
-  // Load message history when a conversation is selected (only if not loaded yet).
+  const contacts: Contact[] = useMemo(
+    () => (subData?.conversations ?? []).map((c) => toContact(c)),
+    [subData],
+  );
+
+  // Auto-select the first conversation once they arrive.
+  useEffect(() => {
+    if (contacts.length && !selectedId) setSelectedId(contacts[0].id);
+  }, [contacts, selectedId]);
+
+  // ---------- messages: still REST + WebSocket (server holds the cipher key) ----------
+  const wsRef = useRef<WebSocket | null>(null);
+
   useEffect(() => {
     if (!selectedId || !user) return;
     if (messagesByConv[selectedId]) return;
@@ -86,7 +104,6 @@ export function useChat() {
       .catch((e) => setError(e instanceof Error ? e.message : "load failed"));
   }, [selectedId, user, messagesByConv]);
 
-  // WebSocket: open/swap when selectedId changes.
   useEffect(() => {
     if (!selectedId || !token || !user) return;
 
@@ -98,17 +115,15 @@ export function useChat() {
         const data = JSON.parse(ev.data);
         if (data.type !== "message" || !data.message) return;
         const m: BackendMessage = data.message;
-        // dedupe: if we just POSTed it, the optimistic insert already added it.
         setMessagesByConv((prev) => {
           const arr = prev[m.conversation_id] ?? [];
           if (arr.some((x) => x.id === m.id)) return prev;
           return { ...prev, [m.conversation_id]: [...arr, toMessage(m, user.id)] };
         });
       } catch {
-        // ignore malformed frames
+        /* malformed frame */
       }
     };
-    ws.onerror = () => {/* handled by close */};
     ws.onclose = () => {
       if (wsRef.current === ws) wsRef.current = null;
     };
@@ -136,9 +151,9 @@ export function useChat() {
   const startConversation = useCallback(async (otherUsername: string) => {
     setError(null);
     try {
+      // Just create it via REST. The Hasura subscription will pick it up
+      // and append it to `contacts` automatically — no manual refresh.
       const c = await api.createConversation([otherUsername], otherUsername);
-      const ui = toContact(c);
-      setContacts((prev) => (prev.some((x) => x.id === ui.id) ? prev : [ui, ...prev]));
       setSelectedId(c.id);
       return c;
     } catch (e) {
@@ -147,7 +162,7 @@ export function useChat() {
     }
   }, []);
 
-  const messages = selectedId ? (messagesByConv[selectedId] ?? []) : [];
+  const messages = selectedId ? messagesByConv[selectedId] ?? [] : [];
   const allMessages = Object.values(messagesByConv).flat();
 
   return {
@@ -158,7 +173,6 @@ export function useChat() {
     setSelectedId,
     sendMessage,
     startConversation,
-    refreshConversations,
     error,
     clearError: () => setError(null),
   };

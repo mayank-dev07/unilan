@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Provider as UrqlProvider } from "urql";
 import Sidebar from "./components/Sidebar/Sidebar";
 import ChatWindow from "./components/ChatWindow/ChatWindow";
 import EmptyState from "./components/ChatWindow/EmptyState";
@@ -6,6 +7,7 @@ import { ThemeProvider } from "./theme/ThemeContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import AuthScreen from "./auth/AuthScreen";
 import { useChat } from "./hooks/useChat";
+import { gqlClient } from "./api/gql";
 
 function ChatApp() {
   const {
@@ -68,9 +70,11 @@ function Gate() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <Gate />
-      </AuthProvider>
+      <UrqlProvider value={gqlClient}>
+        <AuthProvider>
+          <Gate />
+        </AuthProvider>
+      </UrqlProvider>
     </ThemeProvider>
   );
 }

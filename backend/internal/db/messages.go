@@ -1,6 +1,8 @@
 package db
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -12,14 +14,14 @@ type EncryptedMessage struct {
 	OriginalCT     string
 	EnglishCT      string
 	UniLanCT       string
-	CreatedAt      string
+	CreatedAt      time.Time
 }
 
 func (d *DB) InsertMessage(conversationID, senderID, originalCT, englishCT, unilanCT string) (*EncryptedMessage, error) {
 	id := uuid.NewString()
 	_, err := d.Exec(`
 		INSERT INTO messages (id, conversation_id, sender_id, original_ct, english_ct, unilan_ct)
-		VALUES (?, ?, ?, ?, ?, ?)`,
+		VALUES ($1, $2, $3, $4, $5, $6)`,
 		id, conversationID, senderID, originalCT, englishCT, unilanCT)
 	if err != nil {
 		return nil, err
@@ -30,7 +32,7 @@ func (d *DB) InsertMessage(conversationID, senderID, originalCT, englishCT, unil
 func (d *DB) GetMessage(id string) (*EncryptedMessage, error) {
 	row := d.QueryRow(`
 		SELECT id, conversation_id, sender_id, original_ct, english_ct, unilan_ct, created_at
-		FROM messages WHERE id = ?`, id)
+		FROM messages WHERE id = $1`, id)
 	var m EncryptedMessage
 	if err := row.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.OriginalCT, &m.EnglishCT, &m.UniLanCT, &m.CreatedAt); err != nil {
 		return nil, err
@@ -38,8 +40,7 @@ func (d *DB) GetMessage(id string) (*EncryptedMessage, error) {
 	return &m, nil
 }
 
-// ListMessages returns up to `limit` most-recent messages in the conversation,
-// oldest-first (so the caller can append directly to a chat view).
+// ListMessages returns up to `limit` most-recent messages oldest-first.
 func (d *DB) ListMessages(conversationID string, limit int) ([]EncryptedMessage, []string, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 100
@@ -48,9 +49,9 @@ func (d *DB) ListMessages(conversationID string, limit int) ([]EncryptedMessage,
 		SELECT m.id, m.conversation_id, m.sender_id, m.original_ct, m.english_ct, m.unilan_ct, m.created_at, u.username
 		FROM messages m
 		JOIN users u ON u.id = m.sender_id
-		WHERE m.conversation_id = ?
+		WHERE m.conversation_id = $1
 		ORDER BY m.created_at DESC
-		LIMIT ?`, conversationID, limit)
+		LIMIT $2`, conversationID, limit)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -66,7 +67,6 @@ func (d *DB) ListMessages(conversationID string, limit int) ([]EncryptedMessage,
 		msgs = append(msgs, m)
 		senders = append(senders, sender)
 	}
-	// reverse to oldest-first
 	for i, j := 0, len(msgs)-1; i < j; i, j = i+1, j-1 {
 		msgs[i], msgs[j] = msgs[j], msgs[i]
 		senders[i], senders[j] = senders[j], senders[i]

@@ -16,11 +16,11 @@ func (d *DB) CreateConversation(title, createdBy string, memberIDs []string) (*m
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.Exec(`INSERT INTO conversations (id, title, created_by) VALUES (?, ?, ?)`, id, title, createdBy); err != nil {
+	if _, err := tx.Exec(`INSERT INTO conversations (id, title, created_by) VALUES ($1, $2, $3)`, id, title, createdBy); err != nil {
 		return nil, err
 	}
 	seen := map[string]bool{createdBy: true}
-	if _, err := tx.Exec(`INSERT INTO conversation_members (conversation_id, user_id) VALUES (?, ?)`, id, createdBy); err != nil {
+	if _, err := tx.Exec(`INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)`, id, createdBy); err != nil {
 		return nil, err
 	}
 	for _, uid := range memberIDs {
@@ -28,7 +28,7 @@ func (d *DB) CreateConversation(title, createdBy string, memberIDs []string) (*m
 			continue
 		}
 		seen[uid] = true
-		if _, err := tx.Exec(`INSERT INTO conversation_members (conversation_id, user_id) VALUES (?, ?)`, id, uid); err != nil {
+		if _, err := tx.Exec(`INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)`, id, uid); err != nil {
 			return nil, err
 		}
 	}
@@ -39,7 +39,7 @@ func (d *DB) CreateConversation(title, createdBy string, memberIDs []string) (*m
 }
 
 func (d *DB) GetConversation(id string) (*models.Conversation, error) {
-	row := d.QueryRow(`SELECT id, title, created_by, created_at FROM conversations WHERE id = ?`, id)
+	row := d.QueryRow(`SELECT id, title, created_by, created_at FROM conversations WHERE id = $1`, id)
 	var c models.Conversation
 	err := row.Scan(&c.ID, &c.Title, &c.CreatedBy, &c.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -56,7 +56,7 @@ func (d *DB) ListConversationsForUser(userID string) ([]models.Conversation, err
 		SELECT c.id, c.title, c.created_by, c.created_at
 		FROM conversations c
 		JOIN conversation_members m ON m.conversation_id = c.id
-		WHERE m.user_id = ?
+		WHERE m.user_id = $1
 		ORDER BY c.created_at DESC`, userID)
 	if err != nil {
 		return nil, err
@@ -75,13 +75,13 @@ func (d *DB) ListConversationsForUser(userID string) ([]models.Conversation, err
 
 func (d *DB) IsMember(conversationID, userID string) (bool, error) {
 	var n int
-	err := d.QueryRow(`SELECT COUNT(*) FROM conversation_members WHERE conversation_id = ? AND user_id = ?`,
+	err := d.QueryRow(`SELECT COUNT(*) FROM conversation_members WHERE conversation_id = $1 AND user_id = $2`,
 		conversationID, userID).Scan(&n)
 	return n > 0, err
 }
 
 func (d *DB) ConversationMemberIDs(conversationID string) ([]string, error) {
-	rows, err := d.Query(`SELECT user_id FROM conversation_members WHERE conversation_id = ?`, conversationID)
+	rows, err := d.Query(`SELECT user_id FROM conversation_members WHERE conversation_id = $1`, conversationID)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,9 @@ import SearchBar from "./SearchBar";
 import ChatListItem from "./ChatListItem";
 import AnimatedList from "../reactbits/AnimatedList";
 import NewChatDialog from "./NewChatDialog";
+import PeopleList from "./PeopleList";
+
+type Tab = "chats" | "people";
 
 type Props = {
   contacts: Contact[];
@@ -17,6 +20,7 @@ type Props = {
 export default function Sidebar({ contacts, messages, selectedId, onSelect, onStartChat }: Props) {
   const [query, setQuery] = useState("");
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>("chats");
 
   const filtered = useMemo(
     () => contacts.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())),
@@ -28,30 +32,61 @@ export default function Sidebar({ contacts, messages, selectedId, onSelect, onSt
     return thread[thread.length - 1];
   };
 
+  // When the user picks someone from the People tab, switch back to Chats
+  // so they immediately see the new conversation.
+  const startChatAndSwitch = async (username: string) => {
+    await onStartChat(username);
+    setTab("chats");
+  };
+
   return (
     <aside className="w-full md:w-[32%] md:min-w-[340px] md:max-w-[420px] flex flex-col bg-paper border-r border-line">
       <SidebarHeader onNewChat={() => setNewChatOpen(true)} />
-      <SearchBar value={query} onChange={setQuery} />
+
+      <div className="flex border-b border-line bg-card">
+        {(["chats", "people"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-2.5 text-[11px] uppercase tracking-[0.25em] transition relative ${
+              tab === t ? "text-ink" : "text-ink-dim hover:text-ink"
+            }`}
+          >
+            {t}
+            {tab === t && (
+              <span className="absolute bottom-0 left-1/4 right-1/4 h-px bg-accent" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === "chats" && <SearchBar value={query} onChange={setQuery} />}
 
       <div className="flex-1 overflow-y-auto thin-scroll">
-        <AnimatedList>
-          {filtered.map((c) => (
-            <ChatListItem
-              key={c.id}
-              contact={c}
-              lastMessage={lastMessageFor(c.id)}
-              active={c.id === selectedId}
-              onClick={() => onSelect(c.id)}
-            />
-          ))}
-        </AnimatedList>
-        {filtered.length === 0 && (
-          <button
-            onClick={() => setNewChatOpen(true)}
-            className="block w-full text-center text-ink-dim hover:text-ink text-[11px] tracking-[0.2em] uppercase py-12 transition"
-          >
-            no chats — start one
-          </button>
+        {tab === "chats" ? (
+          <>
+            <AnimatedList>
+              {filtered.map((c) => (
+                <ChatListItem
+                  key={c.id}
+                  contact={c}
+                  lastMessage={lastMessageFor(c.id)}
+                  active={c.id === selectedId}
+                  onClick={() => onSelect(c.id)}
+                />
+              ))}
+            </AnimatedList>
+            {filtered.length === 0 && (
+              <button
+                onClick={() => setTab("people")}
+                className="block w-full text-center text-ink-dim hover:text-ink text-[11px] tracking-[0.2em] uppercase py-12 transition"
+              >
+                no chats — browse people
+              </button>
+            )}
+          </>
+        ) : (
+          <PeopleList onStartChat={startChatAndSwitch} />
         )}
       </div>
 

@@ -12,7 +12,7 @@ var ErrNotFound = errors.New("not found")
 
 func (d *DB) CreateUser(username, passwordHash string) (*models.User, error) {
 	id := uuid.NewString()
-	_, err := d.Exec(`INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)`,
+	_, err := d.Exec(`INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)`,
 		id, username, passwordHash)
 	if err != nil {
 		return nil, err
@@ -21,12 +21,12 @@ func (d *DB) CreateUser(username, passwordHash string) (*models.User, error) {
 }
 
 func (d *DB) GetUserByID(id string) (*models.User, error) {
-	row := d.QueryRow(`SELECT id, username, password_hash, created_at FROM users WHERE id = ?`, id)
+	row := d.QueryRow(`SELECT id, username, password_hash, created_at FROM users WHERE id = $1`, id)
 	return scanUser(row)
 }
 
 func (d *DB) GetUserByUsername(username string) (*models.User, error) {
-	row := d.QueryRow(`SELECT id, username, password_hash, created_at FROM users WHERE username = ?`, username)
+	row := d.QueryRow(`SELECT id, username, password_hash, created_at FROM users WHERE username = $1`, username)
 	return scanUser(row)
 }
 

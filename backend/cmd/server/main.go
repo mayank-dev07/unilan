@@ -33,7 +33,7 @@ func main() {
 
 	gin.SetMode(cfg.GinMode)
 
-	store, err := db.Open(cfg.DBPath)
+	store, err := db.Open(cfg.DatabaseURL)
 	if err != nil {
 		logger.Error("db open failed", "err", err)
 		os.Exit(1)
