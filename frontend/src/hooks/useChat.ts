@@ -23,9 +23,11 @@ function toMessage(m: BackendMessage, myUserId: string): Message {
     fromMe: m.sender_id === myUserId,
     status: "delivered",
     unilan: m.unilan_text,
-    english: m.english_text,
+    display: m.display_text,
     original: m.original_text,
     senderUsername: m.sender_username,
+    senderLang: m.sender_lang,
+    viewerLang: m.viewer_lang,
     mediaUrl: m.media_url || undefined,
     mediaType,
   };

@@ -11,10 +11,38 @@ import (
 
 var ErrNotFound = errors.New("not found")
 
-// CreateUser registers a new username/password user with no avatar.
-// Kept for back-compat; new code should call CreateUserWithPicture.
+const userCols = `id, username, COALESCE(password_hash, ''), COALESCE(google_sub, ''),
+                  COALESCE(email, ''), COALESCE(name, ''), COALESCE(picture, ''),
+                  COALESCE(language, 'en'), created_at`
+
+// CreateUser registers a new username/password user with no avatar and the
+// default language. Kept for back-compat; new callers should use
+// CreateUserFull.
 func (d *DB) CreateUser(username, passwordHash string) (*models.User, error) {
-	return d.CreateUserWithPicture(username, passwordHash, "")
+	return d.CreateUserFull(username, passwordHash, "", "en")
+}
+
+// CreateUserFull registers a new user with optional avatar and language.
+func (d *DB) CreateUserFull(username, passwordHash, picture, language string) (*models.User, error) {
+	if language == "" {
+		language = "en"
+	}
+	id := uuid.NewString()
+	_, err := d.Exec(
+		`INSERT INTO users (id, username, password_hash, picture, language)
+		 VALUES ($1, $2, $3, NULLIF($4, ''), $5)`,
+		id, username, passwordHash, picture, language,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return d.GetUserByID(id)
+}
+
+// CreateUserWithPicture is the older 3-arg signature; kept so existing call
+// sites compile. New code should use CreateUserFull.
+func (d *DB) CreateUserWithPicture(username, passwordHash, picture string) (*models.User, error) {
+	return d.CreateUserFull(username, passwordHash, picture, "en")
 }
 
 // UpdateUserPicture sets the avatar URL on an existing user. Empty string
@@ -29,18 +57,16 @@ func (d *DB) UpdateUserPicture(userID, picture string) (*models.User, error) {
 	return d.GetUserByID(userID)
 }
 
-// CreateUserWithPicture registers a new user, optionally with an avatar URL
-// (typically the Cloudinary secure_url returned by the upload handler).
-func (d *DB) CreateUserWithPicture(username, passwordHash, picture string) (*models.User, error) {
-	id := uuid.NewString()
-	_, err := d.Exec(
-		`INSERT INTO users (id, username, password_hash, picture) VALUES ($1, $2, $3, NULLIF($4, ''))`,
-		id, username, passwordHash, picture,
-	)
-	if err != nil {
+// UpdateUserLanguage sets the regional language preference. Falls back to
+// "en" if the caller passes an empty string.
+func (d *DB) UpdateUserLanguage(userID, language string) (*models.User, error) {
+	if language == "" {
+		language = "en"
+	}
+	if _, err := d.Exec(`UPDATE users SET language = $1 WHERE id = $2`, language, userID); err != nil {
 		return nil, err
 	}
-	return d.GetUserByID(id)
+	return d.GetUserByID(userID)
 }
 
 // UpsertGoogleUser finds-or-creates a user identified by their Google `sub`
@@ -48,8 +74,7 @@ func (d *DB) CreateUserWithPicture(username, passwordHash, picture string) (*mod
 // a numeric suffix on collision.
 func (d *DB) UpsertGoogleUser(sub, email, name, picture string) (*models.User, error) {
 	row := d.QueryRow(
-		`SELECT id, username, COALESCE(password_hash, ''), COALESCE(google_sub, ''), COALESCE(email, ''), COALESCE(name, ''), COALESCE(picture, ''), created_at
-		   FROM users WHERE google_sub = $1`,
+		`SELECT `+userCols+` FROM users WHERE google_sub = $1`,
 		sub,
 	)
 	u, err := scanUser(row)
@@ -71,8 +96,8 @@ func (d *DB) UpsertGoogleUser(sub, email, name, picture string) (*models.User, e
 		return nil, err
 	}
 	if _, err := d.Exec(
-		`INSERT INTO users (id, username, google_sub, email, name, picture)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		`INSERT INTO users (id, username, google_sub, email, name, picture, language)
+		 VALUES ($1, $2, $3, $4, $5, $6, 'en')`,
 		id, username, sub, email, name, picture,
 	); err != nil {
 		return nil, err
@@ -141,28 +166,19 @@ func itoa(i int) string {
 }
 
 func (d *DB) GetUserByID(id string) (*models.User, error) {
-	row := d.QueryRow(
-		`SELECT id, username, COALESCE(password_hash, ''), COALESCE(google_sub, ''), COALESCE(email, ''), COALESCE(name, ''), COALESCE(picture, ''), created_at
-		   FROM users WHERE id = $1`,
-		id,
-	)
+	row := d.QueryRow(`SELECT `+userCols+` FROM users WHERE id = $1`, id)
 	return scanUser(row)
 }
 
 func (d *DB) GetUserByUsername(username string) (*models.User, error) {
-	row := d.QueryRow(
-		`SELECT id, username, COALESCE(password_hash, ''), COALESCE(google_sub, ''), COALESCE(email, ''), COALESCE(name, ''), COALESCE(picture, ''), created_at
-		   FROM users WHERE username = $1`,
-		username,
-	)
+	row := d.QueryRow(`SELECT `+userCols+` FROM users WHERE username = $1`, username)
 	return scanUser(row)
 }
 
 // ListUsersExcept returns every user except the one with the given ID.
 func (d *DB) ListUsersExcept(excludeID string) ([]models.User, error) {
 	rows, err := d.Query(
-		`SELECT id, username, COALESCE(password_hash, ''), COALESCE(google_sub, ''), COALESCE(email, ''), COALESCE(name, ''), COALESCE(picture, ''), created_at
-		   FROM users WHERE id != $1 ORDER BY username ASC`,
+		`SELECT `+userCols+` FROM users WHERE id != $1 ORDER BY username ASC`,
 		excludeID,
 	)
 	if err != nil {
@@ -172,7 +188,7 @@ func (d *DB) ListUsersExcept(excludeID string) ([]models.User, error) {
 	var out []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.GoogleSub, &u.Email, &u.Name, &u.Picture, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.GoogleSub, &u.Email, &u.Name, &u.Picture, &u.Language, &u.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, u)
@@ -182,7 +198,7 @@ func (d *DB) ListUsersExcept(excludeID string) ([]models.User, error) {
 
 func scanUser(row *sql.Row) (*models.User, error) {
 	var u models.User
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.GoogleSub, &u.Email, &u.Name, &u.Picture, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.GoogleSub, &u.Email, &u.Name, &u.Picture, &u.Language, &u.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

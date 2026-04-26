@@ -8,16 +8,16 @@ export default function MessageBubble({ message }: Props) {
   const mine = message.fromMe;
   const [revealed, setRevealed] = useState(false);
 
-  // A media-only message has no meaningful text content (the encrypted
-  // empty-string ciphertext decrypts to ""). The translation eye toggle is
-  // hidden in that case.
+  // A media-only message has no meaningful text content. Hide the eye toggle.
   const hasMedia = !!message.mediaUrl;
   const hasMeaningfulText = !!(message.unilan && message.unilan.length > 0);
-  const hasTranslation = hasMeaningfulText && !!message.english;
-
-  const primary = revealed
-    ? (mine ? message.original ?? message.text : message.english ?? message.text)
-    : (message.unilan ?? message.text);
+  // The eye toggle reveals the message rendered IN THE VIEWER'S LANGUAGE.
+  // For sent messages that's the user's own text. For received messages
+  // crossing languages, it's the translation into the viewer's language —
+  // very useful for actually understanding the message.
+  const revealedText = message.display ?? message.original ?? message.text;
+  const canToggle = hasMeaningfulText && !!revealedText;
+  const primary = revealed ? revealedText : (message.unilan ?? message.text);
 
   return (
     <div className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}>
@@ -55,7 +55,7 @@ export default function MessageBubble({ message }: Props) {
           <p
             className={`text-[13.5px] whitespace-pre-wrap wrap-break-word leading-snug ${
               hasMedia ? "px-2 pt-1.5" : ""
-            } ${!revealed && hasTranslation ? "font-mono tracking-wide" : ""}`}
+            } ${!revealed && canToggle ? "font-mono tracking-wide" : ""}`}
           >
             {primary}
           </p>
@@ -65,12 +65,12 @@ export default function MessageBubble({ message }: Props) {
           className={`flex items-center justify-end gap-1.5 ${hasMedia ? "px-2 pb-1 pt-1" : "mt-1"} text-[10px] uppercase tracking-[0.15em]
             ${mine ? "text-bubble-mine-fg/55" : "text-ink-dim"}`}
         >
-          {hasTranslation && (
+          {canToggle && (
             <button
               type="button"
               onClick={() => setRevealed((v) => !v)}
               className="flex items-center gap-1 hover:opacity-100 opacity-70 transition"
-              title={revealed ? "show UNI LAN" : (mine ? "show original" : "show English")}
+              title={revealed ? "show UNI LAN" : "show original text"}
             >
               {revealed ? <EyeOff size={11} /> : <Eye size={11} />}
             </button>

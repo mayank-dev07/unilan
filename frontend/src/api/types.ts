@@ -6,7 +6,14 @@ export type BackendUser = {
   picture?: string | null;
   name?: string | null;
   email?: string | null;
+  language?: string;
   created_at: string;
+};
+
+export type LanguageInfo = {
+  code: string;
+  name: string;
+  latin: boolean;
 };
 
 export type BackendConversation = {
@@ -21,8 +28,10 @@ export type BackendMessage = {
   conversation_id: string;
   sender_id: string;
   sender_username?: string;
+  sender_lang?: string;
+  viewer_lang?: string;
   original_text: string;
-  english_text: string;
+  display_text: string;
   unilan_text: string;
   media_url?: string;
   media_type?: "image" | "video" | "";

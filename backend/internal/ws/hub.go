@@ -63,6 +63,28 @@ func (h *Hub) Broadcast(conversationID string, msg models.Message) {
 	}
 }
 
+// BroadcastFunc lets the caller render a per-viewer payload. `makePayload`
+// is invoked for each subscribed client with that client's user_id and
+// regional language; whatever bytes it returns are sent as a single text
+// frame. Errors are logged and skipped — one bad client doesn't poison the
+// fan-out.
+func (h *Hub) BroadcastFunc(conversationID string, makePayload func(viewerUserID, viewerLang string) ([]byte, error)) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.clients[conversationID] {
+		payload, err := makePayload(c.UserID, c.Language)
+		if err != nil {
+			log.Printf("ws: per-viewer payload failed for user=%s lang=%s: %v", c.UserID, c.Language, err)
+			continue
+		}
+		select {
+		case c.send <- payload:
+		default:
+			// slow consumer; drop this frame
+		}
+	}
+}
+
 // BroadcastTyping fans a typing-state change out to every client in this
 // conversation EXCEPT the sender (the typist doesn't need to see their own
 // indicator).

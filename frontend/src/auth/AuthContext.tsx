@@ -9,7 +9,7 @@ type AuthState = {
   token: string | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  signup: (username: string, password: string) => Promise<void>;
+  signup: (username: string, password: string, language?: string) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
   // Manually commit a session — used by AuthScreen's two-step signup so the
   // user isn't shown as "logged in" until they finish (or skip) the avatar step.
@@ -87,8 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applyAuth(r.token, r.user);
   }, [applyAuth]);
 
-  const signup = useCallback(async (username: string, password: string) => {
-    const r = await api.signup(username, password);
+  const signup = useCallback(async (username: string, password: string, language?: string) => {
+    const r = await api.signup(username, password, language);
     applyAuth(r.token, r.user);
   }, [applyAuth]);
 

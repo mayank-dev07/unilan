@@ -25,11 +25,16 @@ var upgrader = websocket.Upgrader{
 }
 
 // Client is a single websocket connection scoped to one conversation.
+// Language is the viewer's regional language at connect time — drives the
+// per-viewer rendering done by Hub.BroadcastFunc. If the user changes their
+// language preference, they need to reconnect for it to take effect (cheap
+// since the frontend reopens the WS on conversation switch anyway).
 type Client struct {
 	Hub            *Hub
 	Conn           *websocket.Conn
 	UserID         string
 	Username       string
+	Language       string
 	ConversationID string
 	send           chan []byte
 }
@@ -59,6 +64,13 @@ func Serve(hub *Hub, issuer *auth.Issuer, d *db.DB) gin.HandlerFunc {
 			c.JSON(http.StatusForbidden, gin.H{"error": "not a member"})
 			return
 		}
+		// Resolve the viewer's regional language so per-viewer broadcasts can
+		// render appropriately. Default to "en" if the lookup fails so we
+		// don't refuse the connection over a non-critical detail.
+		viewerLang := "en"
+		if u, err := d.GetUserByID(claims.UserID); err == nil && u.Language != "" {
+			viewerLang = u.Language
+		}
 		conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
 			return
@@ -68,6 +80,7 @@ func Serve(hub *Hub, issuer *auth.Issuer, d *db.DB) gin.HandlerFunc {
 			Conn:           conn,
 			UserID:         claims.UserID,
 			Username:       claims.Username,
+			Language:       viewerLang,
 			ConversationID: convID,
 			send:           make(chan []byte, 32),
 		}

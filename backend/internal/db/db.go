@@ -55,6 +55,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS picture       TEXT;
 ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS users_google_sub_key ON users(google_sub) WHERE google_sub IS NOT NULL;
 
+-- Per-user regional language. Drives both how the user's outgoing messages
+-- are interpreted and how incoming messages are rendered for them.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT NOT NULL DEFAULT 'en';
+
 CREATE TABLE IF NOT EXISTS conversations (
 	id         TEXT PRIMARY KEY,
 	title      TEXT NOT NULL DEFAULT '',
@@ -85,6 +89,9 @@ CREATE TABLE IF NOT EXISTS messages (
 -- get them on next startup; existing rows get NULL → text-only message.
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url  TEXT;
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_type TEXT;
+-- Snapshot of the sender's language at send time (so it stays correct even
+-- if the sender changes their preference later). Defaults to 'en' for old rows.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS sender_lang TEXT NOT NULL DEFAULT 'en';
 
 CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
 `
