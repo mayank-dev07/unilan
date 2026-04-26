@@ -1,0 +1,51 @@
+import { useMemo, useState } from "react";
+import type { Contact, Message } from "../../types";
+import SidebarHeader from "./SidebarHeader";
+import SearchBar from "./SearchBar";
+import ChatListItem from "./ChatListItem";
+import AnimatedList from "../reactbits/AnimatedList";
+
+type Props = {
+  contacts: Contact[];
+  messages: Message[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+};
+
+export default function Sidebar({ contacts, messages, selectedId, onSelect }: Props) {
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(
+    () => contacts.filter((c) => c.name.toLowerCase().includes(query.toLowerCase())),
+    [contacts, query],
+  );
+
+  const lastMessageFor = (contactId: string) => {
+    const thread = messages.filter((m) => m.contactId === contactId);
+    return thread[thread.length - 1];
+  };
+
+  return (
+    <aside className="w-full md:w-[30%] md:min-w-[340px] md:max-w-[420px] flex flex-col bg-wa-panel border-r border-wa-border">
+      <SidebarHeader />
+      <SearchBar value={query} onChange={setQuery} />
+
+      <div className="flex-1 overflow-y-auto wa-scroll">
+        <AnimatedList>
+          {filtered.map((c) => (
+            <ChatListItem
+              key={c.id}
+              contact={c}
+              lastMessage={lastMessageFor(c.id)}
+              active={c.id === selectedId}
+              onClick={() => onSelect(c.id)}
+            />
+          ))}
+        </AnimatedList>
+        {filtered.length === 0 && (
+          <p className="text-center text-wa-text-dim text-sm py-10">No chats found</p>
+        )}
+      </div>
+    </aside>
+  );
+}
